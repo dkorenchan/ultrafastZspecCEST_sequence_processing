@@ -43,7 +43,7 @@ function [EstimatedParams,CI,Residual,Sum_All_P,Indiv_P]=...
 %6     phase    --  linear phase term for peak
 %       
 % Sum_All_P - spectral sum of all peaks
-% Indiv_P - struct containing parameters for each peak fitted
+% Indiv_P - struct containing fitted profile for each peak
 %
 % residual - Value of objective function at solution, returned as an array. In general, residual = fun(x,xdata)-ydata.
 % CI - struct containing 95% confidence interval for each parameter fit
@@ -156,8 +156,8 @@ end
 % If only water (and possibly NOE or MT) pools, fit negative ppm values only
 if negppmflg
 %     fitpts = (length(w)/2+1):(length(w)*2/3);
-    fitpts=find(w<0 & w>-5);
-%     fitpts=find(w<0 | w>8);   %used to fit negative ppm + the highest positive ppm vals for (water + NOE + MT)    
+%     fitpts=find(w<0 & w>-5);
+    fitpts=find(w<0 | w>11);   %used to fit negative ppm + the highest positive ppm vals for (water + NOE + MT)    
 else
     fitpts = 1:length(w);
 end

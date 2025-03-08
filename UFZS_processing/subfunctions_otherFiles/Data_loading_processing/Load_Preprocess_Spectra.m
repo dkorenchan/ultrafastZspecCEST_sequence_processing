@@ -44,6 +44,7 @@ else %pull in data from fid (1D) or ser (2D) file(s)
         % Center FIDs via circular shifting (using 1st FID)
         maxval=max(abs(fid(1,:)));
         maxind=find(abs(fid(1,:))==maxval);
+        np=size(fid,2);
         shift=ceil(np/2)-maxind;
         maxleft=abs(fid(1,maxind-1));
         maxright=abs(fid(1,maxind+1));

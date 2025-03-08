@@ -113,5 +113,6 @@ for i = pvals
         end
     end
 end
+results.indivFits=ind_fits;
 set(0,'DefaultFigureWindowStyle','normal') %turn off figure docking
 end

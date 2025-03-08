@@ -60,12 +60,12 @@ x.ppm9pt8.lb= [0      0   0.2     1   9.0     0       ];  % lower bound
 x.ppm9pt8.ub= [0.8    1   3.0     2   11.0    0       ];  % upper bound
 
 % NOE pool
-x.NOE.st=   [0.1    .3  1.5     1   -3.5    0       ];  % initial value 
+x.NOE.st=   [0.1    .3  2       1   -3.5    0       ];  % initial value 
 x.NOE.lb=   [0.0    0   1       1   -4      0       ];  % lower bound
-x.NOE.ub=   [0.4    1   4.5     2   -3      0       ];  % upper bound 
+x.NOE.ub=   [0.4    1   12      2   -3      0       ];  % upper bound 
 
 % MT pool
-x.MT.st=    [0.1    .3  20      1   0       0       ];  % initial value 
-x.MT.lb=    [0.0    0   10      1   -1      0       ];  % lower bound
-x.MT.ub=    [0.2    1   30     2   1       0       ];  % upper bound 
+x.MT.st=    [0.1    .3  30      1   0       0       ];  % initial value 
+x.MT.lb=    [0.0    0   15      1   0      0        ];  % lower bound
+x.MT.ub=    [0.25   1   50      2   1       0       ];  % upper bound 
 end
