@@ -30,6 +30,15 @@ elseif strcmp(ppars.peaktype,'Lorentzian')
     pfitvals=setLPeakBounds;
 end
 
+% If MT is to be fit to a super-Lorentzian, override MT fitting parameters
+% accordingly
+if pflgs.MTsuperLorentz
+    pfitvals.MT=setSLPeakBounds;
+    fixvals.MTsuperLorentz=true;
+else
+    fixvals.MTsuperLorentz=false;
+end
+
 % Set up variable fixvals to use for fixing/constraining values (NaN 
 % for all values free to vary). If all Pseudo-Voigt peaks are to have 
 % identical Lorentzian-Gaussian character (based upon 
@@ -74,7 +83,8 @@ for i = pvals
     % negative ppm values only prior to fitting other peaks
     if pflgs.water1st
         EPfirst = ufzsMultiPeakFit(results.zspecppm, ...
-            1-squeeze(results.zspec(i,:)),firstnames,pfitvals,fixvals);
+            1-squeeze(results.zspec(i,:)),results.omega_0_MHz,...
+            firstnames,pfitvals,fixvals);
         for j = 1:numel(firstnames)
             fixvals.(firstnames{j}) = EPfirst.(firstnames{j});
         end
@@ -82,8 +92,8 @@ for i = pvals
     
     % Then, fit the rest of the peaks
     [results.EstParams{i},~,~,~,ind_fits{i}] = ufzsMultiPeakFit(...
-        results.zspecppm,1-squeeze(results.zspec(i,:)),ppars.pools,...
-        pfitvals,fixvals,ppars.ppmwt,true);
+        results.zspecppm,1-squeeze(results.zspec(i,:)),results.omega_0_MHz,...
+        ppars.pools,pfitvals,fixvals,ppars.ppmwt,true);
     title([ppars.peaktype ' fitting of z-spectrum, ' ...
         num2str(results.satT(i),'%1.2f') ' \muT (' ...
         num2str(results.satHz(i),'%3.1f') ' Hz)'])
@@ -109,7 +119,11 @@ for i = pvals
 %                 %convert from ppm to Hz
         fixvals.(name)=NaN(npar,1);
         if pflgs.fix
-            fixvals.(name)(end-1)=results.EstParams{ppars.fixind}.(name)(end-1); 
+            if strcmp(name,'MT') && pflgs.MTsuperLorentz
+                fixvals.(name)(3)=results.EstParams{ppars.fixind}.(name)(3);
+            else
+                fixvals.(name)(end-1)=results.EstParams{ppars.fixind}.(name)(end-1); 
+            end
         end
     end
 end

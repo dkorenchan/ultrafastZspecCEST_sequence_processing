@@ -103,4 +103,6 @@ else
         timing.trec=timing.trec*2;
     end
 end 
+
+results.omega_0_MHz=omega_0_MHz;
 end

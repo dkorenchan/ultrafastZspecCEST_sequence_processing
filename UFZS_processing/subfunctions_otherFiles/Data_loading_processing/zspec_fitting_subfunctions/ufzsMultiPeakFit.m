@@ -1,11 +1,13 @@
 function [EstimatedParams,CI,Residual,Sum_All_P,Indiv_P]=...
-    ufzsMultiPeakFit(w,OneMinZ,pNames,pPars,fixedVals,ppm_wt,PlotDispFlag)
-% Purpose: Multi-peak model fit, either Lorentzian or Pseudo-Voigt
+    ufzsMultiPeakFit(w,OneMinZ,omega_0_MHz,pNames,pPars,fixedVals,ppm_wt,PlotDispFlag)
+% Purpose: Multi-peak model fit: Lorentzian, Pseudo-Voigt, or
+% super-Lorentzian
 % Created: 09/28/18 by OP
 %------------------------input variables-------------------------------------%
 % ----Measured (MR de facto scanned) values:
 % w - offset frequency [ppm]
 % OneMinZ=1-Z=1-Measured Z(delta_w) =1-Mz/Mz0
+% omega_0_MHz - 1H Larmor frequency, in MHz
 % pNames -  cell array of fieldnames of pPars and fixedVals corresponding to 
 %           peaks to fit
 % pPars -   structure contains start point, lower and upper bounds for peak 
@@ -18,6 +20,8 @@ function [EstimatedParams,CI,Residual,Sum_All_P,Indiv_P]=...
 %               -   fixedVals.samePVchar: logical (for Pseudo-Voigt peaks); 
 %                   if true, this will constrain peak character (alpha and 
 %                   FWHMrat) to be same for all peaks
+%               -   fixedVals.MTsuperLorentz: logical; if true, MT pool 
+%                   will be fit to a super-Lorentzian lineshape
 % ppm_wt -  optional (array of) ppm value(s) to focus fitting on (e.g. if 
 %           small but important peak(s) need fitting) 
 % PlotDispFlag - optional plot and display flag (true/false; default false)
@@ -41,7 +45,13 @@ function [EstimatedParams,CI,Residual,Sum_All_P,Indiv_P]=...
 %                   constrained between 1 and 2)
 %5     omega_0  --  displacement
 %6     phase    --  linear phase term for peak
-%       
+%
+%      ---For super-Lorentzian peaks---
+%1     Ai       --  peak amplitude
+%2     "FWHM"   --  peak linewidth (not truly the FWHM, though!!)
+%3     chems    --  displacement
+%4-6   (not currently used)
+%
 % Sum_All_P - spectral sum of all peaks
 % Indiv_P - struct containing fitted profile for each peak
 %
@@ -74,6 +84,11 @@ function [EstimatedParams,CI,Residual,Sum_All_P,Indiv_P]=...
 %                           adjust Lorentzian formulas to be complex-valued
 %               8/27/24  -  Added MT pool as one of the pools to fit first
 %                           with negative ppm values
+%               6/12/25  -  Added super-Lorentzian fitting option for MT
+%                           pool, using script from Scott Swanson. To do
+%                           this, included additional input omega_0_MHz and
+%                           added flag in fixedVals to indicate when to use
+%                           super-Lorentzian fitting
 
 %***************** set unspecified optional inputs***************
 %---------------------------------------------------------------%
@@ -98,17 +113,17 @@ else
 end
 
 % Fill in unspecified parameters
-if nargin < 5
+if nargin < 6
     for ii = 1:numel(pNames)
         name = pNames{ii};
         fixedVals.(name) = NaN(nPars,1);
     end
     ppm_wt = NaN;
     PlotDispFlag = false;
-elseif nargin < 6
+elseif nargin < 7
     ppm_wt = NaN;
     PlotDispFlag = false;    
-elseif nargin < 7
+elseif nargin < 8
     PlotDispFlag = false;
 end
 
@@ -137,15 +152,26 @@ else
     samePVcharflg=false;    
 end
 
+% Identify whether MT pool will be fit to super-Lorentzian or not
+if isfield(fixedVals,'MTsuperLorentz')
+    if fixedVals.MTsuperLorentz
+        superLorentzflg=true;
+    else
+        superLorentzflg=false;
+    end
+else
+    superLorentzflg=false;    
+end
+
 % Final values to be sent to function
 Full_Model_x0=zeros(numel(pNames)*nPars,1);%initial value
 Full_Model_lb=zeros(numel(pNames)*nPars,1);%lower bound
 Full_Model_ub=zeros(numel(pNames)*nPars,1);%upper bound
 for ii = 1:numel(pNames)
     name = pNames{ii};
-    Full_Model_x0((nPars*(ii-1)+1):(nPars*ii))=pPars.(name).st;
-    Full_Model_lb((nPars*(ii-1)+1):(nPars*ii))=pPars.(name).lb;
-    Full_Model_ub((nPars*(ii-1)+1):(nPars*ii))=pPars.(name).ub;
+    Full_Model_x0((nPars*(ii-1)+1):(nPars*ii))=pPars.(name).st(1:nPars);
+    Full_Model_lb((nPars*(ii-1)+1):(nPars*ii))=pPars.(name).lb(1:nPars);
+    Full_Model_ub((nPars*(ii-1)+1):(nPars*ii))=pPars.(name).ub(1:nPars);
 end
 %---------------------------------------------------------------------%
 %*********************************************************************
@@ -157,7 +183,8 @@ end
 if negppmflg
 %     fitpts = (length(w)/2+1):(length(w)*2/3);
 %     fitpts=find(w<0 & w>-5);
-    fitpts=find(w<0 | w>11);   %used to fit negative ppm + the highest positive ppm vals for (water + NOE + MT)    
+%     fitpts=find(w<0 | w>11);   %used to fit negative ppm + the highest positive ppm vals for (water + NOE + MT)    
+    fitpts=find(w<0);   %used to fit negative ppm + the highest positive ppm vals for (water + NOE + MT)    
 else
     fitpts = 1:length(w);
 end
@@ -169,16 +196,17 @@ end
 % opt=optimoptions('lsqnonlin','MaxFunctionEvaluations',6000,...
 %     'MaxIterations',4000,'FunctionTolerance',1e-12,'StepTolerance',1e-12);
 [EPvec,resnorm,Residual,~,~,~,jacobian]=...
-    lsqnonlin(@(x) peakFitFcn(x,pNames,w(fitpts),OneMinZ(fitpts),ppm_wt,...
-    peakType,samePVcharflg),Full_Model_x0,Full_Model_lb,Full_Model_ub);%,opt);
+    lsqnonlin(@(x) peakFitFcn(x,pNames,w(fitpts),OneMinZ(fitpts),...
+    omega_0_MHz,ppm_wt,peakType,samePVcharflg,superLorentzflg),...
+    Full_Model_x0,Full_Model_lb,Full_Model_ub);%,opt);
 
-notWaterIdx=find(~strcmp(pNames,'water'));
-if samePVcharflg && ~isempty(notWaterIdx) %update alpha and FWHMrat with 
+notWaterMTidx=find(~strcmp(pNames,'water') & ~strcmp(pNames,'MT'));
+if samePVcharflg && ~isempty(notWaterMTidx) %update alpha and FWHMrat with 
         %values from 1st non-water pool, 
         %which were overridden during optimization 
-    for ii=notWaterIdx
-        EPvec(nPars*(ii-1)+2)=EPvec(nPars*(notWaterIdx(1)-1)+2);
-        EPvec(nPars*(ii-1)+4)=EPvec(nPars*(notWaterIdx(1)-1)+4);
+    for ii=notWaterMTidx
+        EPvec(nPars*(ii-1)+2)=EPvec(nPars*(notWaterMTidx(1)-1)+2);
+        EPvec(nPars*(ii-1)+4)=EPvec(nPars*(notWaterMTidx(1)-1)+4);
     end
 end
 EPvec=EPvec.'; % transposing to get a column vector
@@ -192,11 +220,15 @@ for ii = 1:numel(pNames)
     name = pNames{ii};
     EstimatedParams.(name) = EPvec((nPars*(ii-1)+1):(nPars*ii));
     CI.(name) = CIvec((nPars*(ii-1)+1):(nPars*ii),:);
-    switch peakType
-        case 'lorentz'
-            Indiv_P.(name) = ufzsSingleLorentzianModel(EstimatedParams.(name),w);
-        case 'pseudovoigt'
-            Indiv_P.(name) = ufzsSinglePseudoVoigtModel(EstimatedParams.(name),w);
+    if strcmp(name,'MT') && superLorentzflg %use super-Lorentzian for MT
+        Indiv_P.(name) = ufzsSingleSuperLorentzModel(EstimatedParams.(name),w,omega_0_MHz);
+    else
+        switch peakType
+            case 'lorentz'
+                Indiv_P.(name) = ufzsSingleLorentzianModel(EstimatedParams.(name),w);
+            case 'pseudovoigt'
+                Indiv_P.(name) = ufzsSinglePseudoVoigtModel(EstimatedParams.(name),w);
+        end
     end
     Sum_All_P=Sum_All_P+Indiv_P.(name);
 end
@@ -228,39 +260,51 @@ if PlotDispFlag
         name = pNames{ii};
         disp('--------------------------------')
         disp(['----- Pool: ' name ' -----'])   
-        switch peakType
-            case 'lorentz'
-                disp(['Amplitude = ',num2str(EstimatedParams.(name)(1)),...
-                    ' 95% CI = [',num2str(CI.(name)(1,1)),', ',...
-                    num2str(CI.(name)(1,2)),']'])
-                disp(['FWHM = ',num2str(EstimatedParams.(name)(2)),...
-                    ' 95% CI = [',num2str(CI.(name)(2,1)),', ',...
-                    num2str(CI.(name)(2,2)),']'])
-                 disp(['Phase = ',num2str(EstimatedParams.(name)(4)*180/pi),...
-                    ' 95% CI = [',num2str(CI.(name)(4,1)),', ',...
-                    num2str(CI.(name)(4,2)),']'])                 
-                disp(['Offset = ',num2str(EstimatedParams.(name)(3)),...
-                    ' 95% CI = [',num2str(CI.(name)(3,1)),', ',...
-                    num2str(CI.(name)(3,2)),']'])                
-            case 'pseudovoigt'
-                disp(['Amplitude = ',num2str(EstimatedParams.(name)(1)),...
-                    ' 95% CI = [',num2str(CI.(name)(1,1)),', ',...
-                    num2str(CI.(name)(1,2)),']'])
-                disp(['% Gaussian = ',num2str(EstimatedParams.(name)(2)*100),...
-                    ' 95% CI = [',num2str(CI.(name)(2,1)*100),', ',...
-                    num2str(CI.(name)(2,2)*100),']'])
-                disp(['FWHM_Lorentzian = ',num2str(EstimatedParams.(name)(3)),...
-                    ' 95% CI = [',num2str(CI.(name)(3,1)),', ',...
-                    num2str(CI.(name)(3,2)),']'])
-                disp(['FWHM_Gaussian = ',num2str(EstimatedParams.(name)(3)*EstimatedParams.(name)(4)),...
-                    ' 95% CI = [',num2str(CI.(name)(3,1)*CI.(name)(4,1)),', ',...
-                    num2str(CI.(name)(3,2)*CI.(name)(4,2)),']'])
-                disp(['Phase = ',num2str(EstimatedParams.(name)(6)*180/pi),...
-                    ' 95% CI = [',num2str(CI.(name)(6,1)),', ',...
-                    num2str(CI.(name)(6,2)),']']) 
-                disp(['Offset = ',num2str(EstimatedParams.(name)(5)),...
-                    ' 95% CI = [',num2str(CI.(name)(5,1)),', ',...
-                    num2str(CI.(name)(5,2)),']'])
+        if strcmp(name,'MT') && superLorentzflg 
+            disp(['Amplitude = ',num2str(EstimatedParams.(name)(1)),...
+                ' 95% CI = [',num2str(CI.(name)(1,1)),', ',...
+                num2str(CI.(name)(1,2)),']'])
+            disp(['"FWHM" = ',num2str(EstimatedParams.(name)(2)),...
+                ' 95% CI = [',num2str(CI.(name)(2,1)),', ',...
+                num2str(CI.(name)(2,2)),']'])                
+            disp(['Offset = ',num2str(EstimatedParams.(name)(3)),...
+                ' 95% CI = [',num2str(CI.(name)(3,1)),', ',...
+                num2str(CI.(name)(3,2)),']']) 
+        else        
+            switch peakType
+                case 'lorentz'
+                    disp(['Amplitude = ',num2str(EstimatedParams.(name)(1)),...
+                        ' 95% CI = [',num2str(CI.(name)(1,1)),', ',...
+                        num2str(CI.(name)(1,2)),']'])
+                    disp(['FWHM = ',num2str(EstimatedParams.(name)(2)),...
+                        ' 95% CI = [',num2str(CI.(name)(2,1)),', ',...
+                        num2str(CI.(name)(2,2)),']'])
+                     disp(['Phase = ',num2str(EstimatedParams.(name)(4)*180/pi),...
+                        ' 95% CI = [',num2str(CI.(name)(4,1)),', ',...
+                        num2str(CI.(name)(4,2)),']'])                 
+                    disp(['Offset = ',num2str(EstimatedParams.(name)(3)),...
+                        ' 95% CI = [',num2str(CI.(name)(3,1)),', ',...
+                        num2str(CI.(name)(3,2)),']'])                
+                case 'pseudovoigt'
+                    disp(['Amplitude = ',num2str(EstimatedParams.(name)(1)),...
+                        ' 95% CI = [',num2str(CI.(name)(1,1)),', ',...
+                        num2str(CI.(name)(1,2)),']'])
+                    disp(['% Gaussian = ',num2str(EstimatedParams.(name)(2)*100),...
+                        ' 95% CI = [',num2str(CI.(name)(2,1)*100),', ',...
+                        num2str(CI.(name)(2,2)*100),']'])
+                    disp(['FWHM_Lorentzian = ',num2str(EstimatedParams.(name)(3)),...
+                        ' 95% CI = [',num2str(CI.(name)(3,1)),', ',...
+                        num2str(CI.(name)(3,2)),']'])
+                    disp(['FWHM_Gaussian = ',num2str(EstimatedParams.(name)(3)*EstimatedParams.(name)(4)),...
+                        ' 95% CI = [',num2str(CI.(name)(3,1)*CI.(name)(4,1)),', ',...
+                        num2str(CI.(name)(3,2)*CI.(name)(4,2)),']'])
+                    disp(['Phase = ',num2str(EstimatedParams.(name)(6)*180/pi),...
+                        ' 95% CI = [',num2str(CI.(name)(6,1)),', ',...
+                        num2str(CI.(name)(6,2)),']']) 
+                    disp(['Offset = ',num2str(EstimatedParams.(name)(5)),...
+                        ' 95% CI = [',num2str(CI.(name)(5,1)),', ',...
+                        num2str(CI.(name)(5,2)),']'])
+            end
         end
         disp('--------------------------------')
     end
@@ -270,25 +314,40 @@ if PlotDispFlag
 end
 end
 
-function res = peakFitFcn(x,pools,w,data,ppm_wt,peakType,PVcharConstrain)
-if nargin < 7
+function res = peakFitFcn(x,pools,w,data,w0,ppm_wt,peakType,...
+    PVcharConstrain,MTsuperLorentz)
+if nargin < 8
     PVcharConstrain=false;
+    MTsuperLorentz=false;
+elseif nargin < 9
+    MTsuperLorentz=false;    
+end
+
+switch peakType
+    case 'lorentz'
+        npar=4;
+    case 'pseudovoigt'
+        npar=6;
 end
 
 fit = zeros(size(w));
-notWaterIdx=find(~strcmp(pools,'water'));
+notWaterMTidx=find(~strcmp(pools,'water') & ~strcmp(pools,'MT'));
 for iii = 1:numel(pools)
-    switch peakType
-        case 'lorentz'
-            fit = fit + ufzsSingleLorentzianModel(x((4*(iii-1)+1):(4*iii)),w);
-        case 'pseudovoigt'
-            if PVcharConstrain && ~strcmp(pools{iii},'water') 
-                %override alpha and FWHMrat with values from 1st non-water 
-                %pool (except for water) 
-                x(6*(iii-1)+2)=x(6*(notWaterIdx(1)-1)+2);
-                x(6*(iii-1)+4)=x(6*(notWaterIdx(1)-1)+4);
-            end
-            fit=fit+ufzsSinglePseudoVoigtModel(x((6*(iii-1)+1):(6*iii)),w);
+    if strcmp(pools{iii},'MT') && MTsuperLorentz %fit MT to super-Lorentzian
+        fit = fit + ufzsSingleSuperLorentzModel(x((npar*(iii-1)+1):(npar*iii)),w,w0);
+    else
+        switch peakType
+            case 'lorentz'
+                fit = fit + ufzsSingleLorentzianModel(x((npar*(iii-1)+1):(npar*iii)),w);
+            case 'pseudovoigt'
+                if PVcharConstrain && ~strcmp(pools{iii},'water') 
+                    %override alpha and FWHMrat with values from 1st non-water 
+                    %pool (except for water) 
+                    x(npar*(iii-1)+2)=x(npar*(notWaterMTidx(1)-1)+2);
+                    x(npar*(iii-1)+4)=x(npar*(notWaterMTidx(1)-1)+4);
+                end
+                fit=fit+ufzsSinglePseudoVoigtModel(x((npar*(iii-1)+1):(npar*iii)),w);
+        end
     end
 end
 res = data - fit;
@@ -336,4 +395,31 @@ Lph=exp(-1i* ( atan((x-p(5))/(p(3)/2)) + p(6))); %includes zero-order phase term
 L=Lnum./Lden.*Lph; 
 % L=L-min(real(L)); %so that baseline remains at 0, w/ phasing
 Yhat_Single = p(1)*real( p(2)*G + (1-p(2))*L ); %p(1) dictates the amplitude 
+end 
+
+% ufzsSingleSuperLorentzModel:  Generates single super-Lorentzian peak with 
+%                               input parameters. Based on RF_superlorentzian.m:
+%                               Normalized superlorentzian function (works well)
+%                               Uses gaussian kernal Scott Swanson University of Michigan 
+%                               DK note: this equation is legit; it's found for example in Bieri &
+%                               Scheffler, MRM 2006
+%                               Other DK note: to get good linewidths using
+%                               ppm values, empirically it helps to multiply
+%                               the offset in ppm by omega_0
+%                               
+function Yhat_Single = ufzsSingleSuperLorentzModel(p,x,w0)
+f3=0;
+nend=1000;
+for ii = 1:nend
+    stp=1/nend/5;
+    ctheta=ii/nend;
+    
+    f1=stp.*(abs(-1+3.*(ctheta).^2)).^(-1); %calculate line intensity
+    
+    f2=exp(-2*(((2*x-2*p(3))./p(2)./w0./pi).^2).*((3*(ctheta).^2-1).^(-2))); %calculate line shapes
+    
+    f3=f1.*f2 + f3; % intensity times shape
+end
+    
+Yhat_Single=p(1).*f3; %scale shape 
 end 

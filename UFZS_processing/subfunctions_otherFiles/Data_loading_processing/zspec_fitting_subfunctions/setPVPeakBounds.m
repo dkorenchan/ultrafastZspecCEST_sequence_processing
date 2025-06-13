@@ -21,7 +21,7 @@
 function x = setPVPeakBounds()
 %Water pool
 x.water.st= [0.9    .3  1.4     1   0       0       ];  % initial value
-x.water.lb= [0.5    0   0.3     1   0       0       ];%-pi/24  ];  % lower bound
+x.water.lb= [0.3    0   0.3     1   0       0       ];%-pi/24  ];  % lower bound
 x.water.ub= [1.0    1   10      2   0       0       ];%pi/24   ];  % upper bound
 
 % OH pool
@@ -32,12 +32,12 @@ x.OH.ub=    [0.5    1   5.5     2   1       0       ];  % upper bound
 % Amine pool
 x.amine.st= [0.01   .3  1       1   1.8     0       ];  % initial value
 x.amine.lb= [0      0   0.2     1   1.3     0       ];  % lower bound
-x.amine.ub= [0.5    1   2.0     2   2.3     0       ];  % upper bound
+x.amine.ub= [0.5    1   4.0     2   3.0     0       ];  % upper bound
 
 % Amide pool
-x.amide.st= [0.025  .3  1       1   3.0     0       ];  % initial value
-x.amide.lb= [0      0   0.2     1   2.5     0       ];  % lower bound
-x.amide.ub= [0.8    1   4.0     2   3.5      0       ];  % upper bound
+x.amide.st= [0.025  .3  1       1   3.5     0       ];  % initial value
+x.amide.lb= [0      0   0.2     1   3.0     0       ];  % lower bound
+x.amide.ub= [0.8    1   4.0     2   4.0      0       ];  % upper bound
 
 % Trp indole proton pool
 x.Trp.st=   [0.01   .3  1.0     1   5.4     0       ];  % initial value 
@@ -62,10 +62,10 @@ x.ppm9pt8.ub= [0.8    1   3.0     2   11.0    0       ];  % upper bound
 % NOE pool
 x.NOE.st=   [0.1    .3  2       1   -3.5    0       ];  % initial value 
 x.NOE.lb=   [0.0    0   1       1   -4      0       ];  % lower bound
-x.NOE.ub=   [0.4    1   12      2   -3      0       ];  % upper bound 
+x.NOE.ub=   [0.4    1   6       2   -3      0       ];  % upper bound 
 
 % MT pool
-x.MT.st=    [0.1    .3  30      1   0       0       ];  % initial value 
-x.MT.lb=    [0.0    0   15      1   0      0        ];  % lower bound
-x.MT.ub=    [0.25   1   50      2   1       0       ];  % upper bound 
+x.MT.st=    [0.1    0   30      1   0       0       ];  % initial value 
+x.MT.lb=    [0.0    0   15      1   0       0       ];  % lower bound
+x.MT.ub=    [0.6    1   50      2   1       0       ];  % upper bound 
 end

@@ -55,7 +55,7 @@ if procflgs.peakfit
     if strcmp(params.peaktype,'Pseudo-Voigt')
         disp('--Peak fitting: will use Pseudo-Voigt lineshapes.')
         if procflgs.PVcharconstr
-            disp('----Gaussian-Lorentzian peak character will be kept identical for all peaks except water.')
+            disp('----Gaussian-Lorentzian peak character will be kept identical for all peaks except water (and MT).')
         end
     elseif strcmp(params.peaktype,'Lorentzian')
         disp('--Peak fitting: will use Lorentzian lineshapes.')
@@ -76,6 +76,9 @@ if procflgs.peakfit
         disp(['----Fitting will focus on the following ppm value(s): [' ...
             num2str(params.ppmwt) ']'])
     end
+    if procflgs.MTsuperLorentz
+        disp('--Peak fitting: MT pool will be fit to a super-Lorentzian lineshape')
+    end    
 else
     disp('MTR asymmetry at user-specified ppm value will be performed for QUESP analysis')
 end

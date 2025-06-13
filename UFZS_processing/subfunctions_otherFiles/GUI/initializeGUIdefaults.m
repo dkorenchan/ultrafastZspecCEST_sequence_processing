@@ -41,11 +41,13 @@ procflgs.water1st=true; %if true, water (and NOE, if specified) fitted first
     %using negative ppm values, then all other peaks
 params.peaktype='Pseudo-Voigt'; %type of peaks to fit z-spectral lines to
 procflgs.PVcharconstr=true; %if true, all fitted Pseudo-Voigt peaks will 
-    %have the same Lorentzian-Gaussian character
+    %have the same Lorentzian-Gaussian character (except water and MT)
 procflgs.ppmwt=false; %if true, focus peak fitting on a certain ppm value
 params.ppmwt='5.35'; %ppm value(s) to focus peak fitting on, as string
 procflgs.fix=true; %if true, peak offsets at specified power index used 
     %for fitting for all other powers
 params.fixind=2; %index in power list of spectrum to use for fixing 
     %fitted peak offsets 
+procflgs.MTsuperLorentz=true; %if true, MT pool will be fitted using a 
+    %super-Lorentzian lineshape
 end
