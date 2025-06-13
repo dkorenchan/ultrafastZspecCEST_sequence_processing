@@ -30,14 +30,16 @@ ctr2d=1;
 % Identify the data directories containing ultrafast Z-spectra based upon 
 % the PULPROG value in acqus, segregate into 1D or 2D data accordingly
 for i = 1:length(dirfind)
-    ppnam=readParsTopspin(fullfile(pathname,dirfind{i}),'acqus',...
-        {'##$PULPROG'});
-    if contains(ppnam,cfg.pptarget1d,'IgnoreCase',true)
-        dirs1d(ctr1d)=dirfind(i);
-        ctr1d=ctr1d+1;
-    elseif contains(ppnam,cfg.pptarget2d,'IgnoreCase',true)
-        dirs2d(ctr2d)=dirfind(i);
-        ctr2d=ctr2d+1;        
+    if ~isnan(str2double(dirfind{i})) %only take directories that are a number
+        ppnam=readParsTopspin(fullfile(pathname,dirfind{i}),'acqus',...
+            {'##$PULPROG'});
+        if contains(ppnam,cfg.pptarget1d,'IgnoreCase',true)
+            dirs1d(ctr1d)=dirfind(i);
+            ctr1d=ctr1d+1;
+        elseif contains(ppnam,cfg.pptarget2d,'IgnoreCase',true)
+            dirs2d(ctr2d)=dirfind(i);
+            ctr2d=ctr2d+1;        
+        end
     end
 end
 dirs1d=dirs1d(1:ctr1d-1); %remove extra entries
