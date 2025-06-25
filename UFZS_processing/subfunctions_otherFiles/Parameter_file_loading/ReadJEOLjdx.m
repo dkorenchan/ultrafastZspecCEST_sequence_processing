@@ -19,7 +19,24 @@ np1d=numel(jstruct.Blocks(1).YData);
 np2d=numel(jstruct.Blocks)/2;
 fid=zeros(np2d,np1d);
 for iii=1:np2d
-    fid(iii,:)=jstruct.Blocks(2*iii-1).YData + 1i*jstruct.Blocks(2*iii).YData;
+    % There appears to be a glitch where the YData in every other block 
+    % (imaginary FID component) is multiplied or divided by 10^8! 
+    % Correct this below
+    if max(abs(jstruct.Blocks(2*iii-1).YData))>1e5
+        x=jstruct.Blocks(2*iii-1).YData.*1e-8;
+    elseif max(abs(jstruct.Blocks(2*iii-1).YData))<1e-5
+        x=jstruct.Blocks(2*iii-1).YData.*1e8;
+    else
+        x=jstruct.Blocks(2*iii-1).YData;
+    end
+    if max(abs(jstruct.Blocks(2*iii).YData))>1e5
+        y=jstruct.Blocks(2*iii).YData.*1e-8;
+    elseif max(abs(jstruct.Blocks(2*iii).YData))<1e-5
+        y=jstruct.Blocks(2*iii).YData.*1e8;
+    else
+        y=jstruct.Blocks(2*iii).YData;
+    end    
+    fid(iii,:)=x+1i*y;
 end
 % Read through file again to get header information, store as structure
 % otherdata
@@ -39,7 +56,12 @@ while ~feof(fin)
         if ~isempty(value)
             if contains(value,'$$') || strcmp(value(1),'{') %parse out entries 
                 %with units specified, or arrays
-                otherdata.(key) = parseJEOLtextParam(value);
+                if length(value)<60 || strcmp(value(end),'}') %can only 
+                    %parse text successfully if it ends in '}'
+                    otherdata.(key) = parseJEOLtextParam(value);
+                else
+                    otherdata.(key) = value;
+                end
             else
                 numValue = str2double(value);
                 if isnan(numValue)
@@ -51,7 +73,11 @@ while ~feof(fin)
         end
 
     else %append to previous line as text
-        otherdata.(key) = [value tline];
+        temp=otherdata.(key);
+        otherdata.(key)=[temp tline];
+        if strcmp(otherdata.(key)(end),'}') %parse out once '}' has been reached
+            otherdata.(key) = parseJEOLtextParam(otherdata.(key));
+        end
     end
 end
 end
