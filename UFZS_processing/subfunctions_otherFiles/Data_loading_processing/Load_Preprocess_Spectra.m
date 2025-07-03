@@ -40,20 +40,28 @@ if pflgs.topproc %pull in processed data from pdata folders
     spec = flip(spec,2); %flip so as to get ppm scale correct
 else %pull in data from fid (1D) or ser (2D) file(s)
     if pflgs.jeol
-        [fid,pars]=ReadJEOLjdx(fullfile(pathn,ddirs{end}));
-        % Center FIDs via circular shifting (using 1st FID)
-        maxval=max(abs(fid(1,:)));
-        maxind=find(abs(fid(1,:))==maxval);
-        np=size(fid,2);
-        shift=ceil(np/2)-maxind;
-        maxleft=abs(fid(1,maxind-1));
-        maxright=abs(fid(1,maxind+1));
-        if maxleft>maxright
-            fid=circshift(fid,[0 shift+1]);
+        if pflgs.procConvflg %process conventional CEST data
+            for ii=1:numel(ddirs)
+                disp(['Loading file ' num2str(ii) ' of ' num2str(numel(ddirs)) '...'])
+                [temp,pars]=ReadJEOLjdx(fullfile(pathn,ddirs{ii}));
+                fid(ii,:,:)=temp;
+            end
         else
-            fid=circshift(fid,[0 shift]);
+            [fid,pars]=ReadJEOLjdx(fullfile(pathn,ddirs{end}));
+            % Center FIDs via circular shifting (using 1st FID)
+            maxval=max(abs(fid(1,:)));
+            maxind=find(abs(fid(1,:))==maxval);
+            np=size(fid,2);
+            shift=ceil(np/2)-maxind;
+            maxleft=abs(fid(1,maxind-1));
+            maxright=abs(fid(1,maxind+1));
+            if maxleft>maxright
+                fid=circshift(fid,[0 shift+1]);
+            else
+                fid=circshift(fid,[0 shift]);
+            end
+            fid=flip(fid,2);
         end
-        fid=flip(fid,2);
     else
 %         np = str2double(readParsTopspin(fullfile(pathname,datadirs{end}),...
 %             'acqus',{'##$TD'}))/2; %number of complex FID points (should be 

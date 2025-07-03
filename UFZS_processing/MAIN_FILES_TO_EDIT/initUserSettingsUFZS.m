@@ -22,7 +22,11 @@ configs.pptarget1d = 'ufzs1d'; %string to use for finding 1D Z-spectral datasets
 configs.pptarget2d = 'ufz'; %string to use for finding 2D Z-spectral datasets (DK 
     %pulse sequence file - set plval = 9, dsatval = 9, drecval = 1)
 
-configs.pptarget2djeol = 'ufz'; %string to use for finding 2D JEOL datasets
+configs.pptarget2djeol = 'ufz'; %string to use for finding 2D UFZ JEOL datasets
+configs.pptarget3djeol = 'cest'; %string to use for finding JEOL CEST datasets
+    %(NOTE: 3D datasets are currently saved as separate 2D datasets;
+    % if a conventional z-spectroscopy dataset (not ultrafast), then 
+    % the file name will match .pptarget3djeol but NOT .pptarget2djeol!)
 
 % Values for identifying parameters to load in, based upon pulse sequence
 % file

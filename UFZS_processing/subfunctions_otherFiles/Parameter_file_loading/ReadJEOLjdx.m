@@ -21,23 +21,42 @@ fid=zeros(np2d,np1d);
 for iii=1:np2d
     % There appears to be a glitch where the YData in every other block 
     % (imaginary FID component) is multiplied or divided by 10^8! 
-    % Correct this below
-    if max(abs(jstruct.Blocks(2*iii-1).YData))>1e5
-        x=jstruct.Blocks(2*iii-1).YData.*1e-8;
-    elseif max(abs(jstruct.Blocks(2*iii-1).YData))<1e-5
-        x=jstruct.Blocks(2*iii-1).YData.*1e8;
-    else
-        x=jstruct.Blocks(2*iii-1).YData;
+    % Correct this below.
+    % On the 1st 2D datapoint, ID what the multiplicative factor should be
+    % for real and imaginary, then apply the same for all other 2D 
+    % datapoints
+    if iii==1
+        if max(abs(jstruct.Blocks(2*iii-1).YData))>1e5
+            Refac=1e-8;
+        elseif max(abs(jstruct.Blocks(2*iii-1).YData))<1e-5
+            Refac=1e8;
+        else
+            Refac=1;
+        end
+        if max(abs(jstruct.Blocks(2*iii).YData))>1e5
+            Imfac=1e-8;
+        elseif max(abs(jstruct.Blocks(2*iii).YData))<1e-5
+            Imfac=1e8;
+        else
+            Imfac=1;
+        end    
     end
-    if max(abs(jstruct.Blocks(2*iii).YData))>1e5
-        y=jstruct.Blocks(2*iii).YData.*1e-8;
-    elseif max(abs(jstruct.Blocks(2*iii).YData))<1e-5
-        y=jstruct.Blocks(2*iii).YData.*1e8;
-    else
-        y=jstruct.Blocks(2*iii).YData;
-    end    
-    fid(iii,:)=x+1i*y;
+    fid(iii,:)=jstruct.Blocks(2*iii-1).YData.*Refac ...
+        + 1i*jstruct.Blocks(2*iii).YData.*Imfac;
 end
+
+% Unfortunately, the 1E8 correction factor above might be off by a factor 
+% of 10.... Check this by seeing if the max abs value is <=100
+while max(max(abs(fid)))>100
+    if Imfac<1
+        fid=real(fid)+1i.*imag(fid)./10;
+    elseif Refac<1
+        fid=real(fid)./10+1i.*imag(fid);
+    else
+        fid=fid./10;
+    end
+end
+
 % Read through file again to get header information, store as structure
 % otherdata
 fin=fopen(aqpath,'r','n','US-ASCII');

@@ -44,6 +44,10 @@ else
 end
 results.specppm=linspace(sw_ppm/2,-sw_ppm/2,np);
 
+if procflgs.procConvflg
+    results.satppm=pars.x_SAT_OFF_RWAT;
+end
+
 %Get saturation dB values for data labels
 if procflgs.proc1dflg %1D: pull in values from each dataset
     satdB=zeros(length(datadirs),1);

@@ -3,29 +3,40 @@
 %   INPUTS:
 %       results     -   Struct containing processed data to plot along with
 %                       other plotting information
+%       convZflg    -   Logical: if true, then data are for conventional 
+%                       Z-spectroscopy
 %       xmax        -   (optional) Maximum ppm value for displaying the MTR
 %                       asymmetry plot
 %
 %   OUTPUTS:    None - results in plotting windows generated
 %
-function zspecPlot(results,xmax)
+function zspecPlot(results,convZflg,xmax)
 if nargin<2
+    convZflg=false;
+    xmax=8;
+elseif nargin<3
 %     xmax=Inf;
     xmax=8;
 end
 
-% Plot all raw spectra on one plot
-%
-figure; hold on
-for i = 1:size(results.spec,1)
-    plot(results.specppm,abs(results.spec(i,:)))
+if convZflg
+    xmax=Inf;
 end
-title('Raw spectra')
-ylabel('Signal (arb. units)')
-xlabel('Frequency (ppm)')
-legend(results.speclabels)
-set(gca,'Xdir','reverse')
-axis square
+
+% Plot all raw spectra on one plot (only if ultrafast Z-spec)
+%
+if ~convZflg
+    figure; hold on
+    for i = 1:size(results.spec,1)
+        plot(results.specppm,abs(results.spec(i,:)))
+    end
+    title('Raw spectra')
+    ylabel('Signal (arb. units)')
+    xlabel('Frequency (ppm)')
+    legend(results.speclabels)
+    set(gca,'Xdir','reverse')
+    axis square
+end
 
 % Plot all z-spectra on one plot
 %

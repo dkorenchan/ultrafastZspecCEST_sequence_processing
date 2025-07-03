@@ -24,6 +24,7 @@ function [pathname,dirs,pflgs]=findUFZSdatasets(cfg,pflgs)
 
 dirs1d=cell(length(dirfind),1);
 dirs2d=dirs1d;
+dirsConv=dirs1d;
 ctr1d=1;
 ctr2d=1;
 
@@ -45,16 +46,22 @@ end
 dirs1d=dirs1d(1:ctr1d-1); %remove extra entries
 dirs2d=dirs2d(1:ctr2d-1); %remove extra entries
 
-% See if JEOL 2D datasets exist (as .jdx files) within the study directory, 
-% and if so add them to dirs2d
-jeoldirs = dir(fullfile(pathname,'**',strcat('*',cfg.pptarget2djeol,'*.jdx'))); 
+% See if JEOL datasets exist (as .jdx files) within the study directory, 
+% and if so add them either to dirs2d (if UFZS datasets) or to dirsConv (if
+% conventional ZS datasets)
+jeoldirs = dir(fullfile(pathname,'**',strcat('*',cfg.pptarget3djeol,'*.jdx'))); 
     %this searches all subdirectories
 if ~isempty(jeoldirs)
-    disp('JEOL ultrafast spectroscopy 2D datasets discovered! Adding to list...')
+    disp('JEOL datasets discovered! Adding to list...')
     for i=1:numel(jeoldirs)
         jdirnam=extractAfter(jeoldirs(i).folder,pathname);
         jdirfile=jeoldirs(i).name;
-        dirs2d(numel(dirs2d)+1)={fullfile(jdirnam,jdirfile)};
+        % Divide into 2D UFZS datasets vs 3D conventional ZS datasets
+        if contains(jdirfile,cfg.pptarget2djeol,'IgnoreCase',true) %UFZS dataset
+            dirs2d(numel(dirs2d)+1)={fullfile(jdirnam,jdirfile)};
+        else %conventional ZS dataset
+            dirsConv(numel(dirsConv)+1)={fullfile(jdirnam,jdirfile)};
+        end
     end
 end
 
@@ -75,28 +82,42 @@ if ~isempty(dirs1d) && ~isempty(dirs2d) %both 1D and 2D datasets found:
         pflgs.proc1dflg=false; 
         dirs=dirs2d;        
     end
+    pflgs.procConvflg=false;
 elseif ~isempty(dirs1d) && isempty(dirs2d) %only 1D datasets found
     disp('Only 1D datasets found. User will select all to process....')
     pflgs.proc1dflg=true;
+    pflgs.procConvflg=false;
     dirs=dirs1d;    
 elseif isempty(dirs1d) && ~isempty(dirs2d) %only 2D datasets found
     disp('Only 2D datasets found. User will process only one....')
-    pflgs.proc1dflg=false;   
+    pflgs.proc1dflg=false;
+    pflgs.procConvflg=false;
     dirs=dirs2d;    
+elseif ~isempty(dirsConv)
+    disp(['No UFZS datasets found - only conventional z-spectroscopy data. ' ...
+        'All 2D slices will be processed....'])
+    pflgs.proc1dflg=false;
+    pflgs.procConvflg=true;
+    dirs=dirsConv;
 else %no datasets found
-    error(['No datasets found! Check that pptarget1d and/or pptarget2d '...
+    error(['No datasets found! Check that pptarget fields in struct config '...
         'in InitUserSettingsUFZS.m matches (part of) the pulse sequence '...
         'file name'])
 end
 dirs=num2cell(sort(str2double(dirs))); %sort in ascending order
 dirs=cellfun(@num2str,dirs,'UniformOutput',false); %convert back to cell
     %array of strings
-dirs(strcmp(dirs,'NaN'))=dirs2d(contains(dirs2d,'.jdx')); %this adds back in
-    %any JEOL directores, which would have been converted to 'NaN'
+
+% This adds back in any JEOL directores, which would have been converted to 'NaN'
+if pflgs.procConvflg
+    dirs(strcmp(dirs,'NaN'))=dirsConv;     
+else
+    dirs(strcmp(dirs,'NaN'))=dirs2d(contains(dirs2d,'.jdx')); 
+end
 
 % Have user choose which datasets to process (if not just one 2D one)
 %
-if pflgs.proc1dflg || numel(dirs) ~= 1
+if (pflgs.proc1dflg || numel(dirs) ~= 1) && ~pflgs.procConvflg
     choices=dirs;
     if pflgs.proc1dflg %set selection option to multiple for 1D processing
         prompt='Choose 1D experiment numbers to load:';
@@ -110,7 +131,7 @@ if pflgs.proc1dflg || numel(dirs) ~= 1
         'ListSize' , [200 500] , ...
         'PromptString' , prompt);
     dirs=dirs(answer);
-else
+elseif ~pflgs.procConvflg
     disp(['Only one 2D dataset detected: ' dirs{1} ' - processing...'])
 end
 

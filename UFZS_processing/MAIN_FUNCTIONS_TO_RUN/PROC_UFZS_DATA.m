@@ -60,7 +60,11 @@ disp('No previous data specified. Starting processing pipeline...')
 [results.spec,pars]=Load_Preprocess_Spectra(pathname,datadirs,procflgs,params);
 
 % Parse out extracted data parameters into condensed variables to use later
-np=size(results.spec,2);
+if procflgs.procConvflg
+    np=size(results.spec,3);
+else
+    np=size(results.spec,2);
+end
 [results,timing,nosatidx]=extractUFZSDataPars(results,datadirs,cfg,procflgs,params,...
     pars,np);
 
@@ -69,15 +73,15 @@ np=size(results.spec,2);
 % If procflgs.norm == true, normalize spectra by one of the two procedures
 % described to the user in the GUI
 normpars=struct;
-if procflgs.norm
+if procflgs.norm && ~procflgs.procConvflg
     [results,normpars]=normalizeAllSpectra(results,nosatidx,params);
 end
 
 % Calculate all z-spectra + MTR asymmetry
-results=calcZspecMTRasym(results,procflgs.norm,params,nosatidx,normpars);
+results=calcZspecMTRasym(results,procflgs,params,nosatidx,normpars);
 
 % Plot data thus far
-zspecPlot(results,params.ppmwdw);
+zspecPlot(results,procflgs.procConvflg,params.ppmwdw);
 
 
 %% Z-SPECTRAL FITTING, QUESP ANALYSIS
