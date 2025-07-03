@@ -34,6 +34,9 @@
 %
 function [results,timing,nosatidx]=extractUFZSDataPars(results,datadirs,cfg,...
     procflgs,params,pars,np)
+
+%% PARAMETER READING
+% Pull in general NMR acquisition parameters
 if procflgs.jeol
     sw_Hz=pars.x_X_SWEEP;
     omega_0_MHz=pars.x_X_FREQ/1e6;
@@ -48,55 +51,7 @@ if procflgs.procConvflg
     results.satppm=pars.x_SAT_OFF_RWAT;
 end
 
-%Get saturation dB values for data labels
-if procflgs.proc1dflg %1D: pull in values from each dataset
-    satdB=zeros(length(datadirs),1);
-    for i=1:length(datadirs)
-        dBtemp=pars(i).plw;
-        satdB(i)=-log10(dBtemp(cfg.plval+1))*10;
-        if isinf(satdB(i)) %catch very low powers
-            satdB(i)=1000;
-        end
-        excdB=-log10(dBtemp(2))*10; %PLDB1, to use for nutation freq calc
-    end
-    nosatidx=find(satdB==1000); %get indices of spectra w/o saturation
-elseif procflgs.jeol %2D, JEOL: pull in Hz values from parameters
-    satHz=pars.x_SAT_B1;
-    nosatidx=find(satHz==0); %get indices of spectra w/o saturation
-else %2D, Bruker: pull in dB values from valist
-    satdB=pars.valist(~isnan(pars.valist)); %remove NaN in 1st index (dB or W)
-    dBtemp=pars.plw;
-    excdB=-log10(dBtemp(2))*10; %PLDB1, to use for nutation freq calc 
-    nosatidx=find(satdB==1000); %get indices of spectra w/o saturation
-end
-
-%Calculate nutation frequencies based upon 90deg pulse calibration (p1,
-%pl1), or inputted pw90 value
-disp('Calculating saturation amplitudes (in Hz) using P1 and PLDB1 parameters...')
-if procflgs.override && ~isinf(params.pw90) && ~isnan(params.pw90)
-    pw90 = params.pw90 * 1e-6; %90deg pulse width (s)
-elseif procflgs.jeol
-    pw90 = pars(1).x_H1_90REF;
-else
-    pw90 = pars(1).p(2) * 1e-6; %90deg pulse width (s)
-end
-
-if procflgs.jeol
-    pwExp = pars(1).x_H1_90REF;
-    satHz = satHz * pwExp/pw90; 
-else
-    B1_90 = 1 / 4 / pw90; %B1 nutation frequency corresponding with PLW1 (Hz)
-    satHz = B1_90 * 10 .^ ((excdB - satdB) / 10 / 2); %B1 saturation frequencies (Hz)
-end
-satT = satHz' ./ gamma_;% * 1e6; %B1 saturation amplitudes (uT)
-results.speclabels = cell(length(satT),1);
-for i = 1:length(satHz)
-    results.speclabels{i} = [num2str(satT(i),'%2.1f') ' \muT'];
-end
-
-results.satHz=satHz(satHz>1e-9); %remove 0 Hz entries 
-results.satT=satT(satT>1e-9); %remove 0 uT entries
-
+% Pull in timing parameters: saturation pulse duration, recovery delay
 if procflgs.jeol
     timing.tp=pars(1).x_SAT_DELAY; %pulse duration for saturation
     timing.rd=pars(1).x_CEST_RELAXATION_DELAY; %recovery delay following pulse sequence    
@@ -107,6 +62,87 @@ else
         timing.trec=timing.trec*2;
     end
 end 
+
+% Pull in 90deg pulse calibration (for JEOL: also pull in actual "90deg" 
+% pulse used)
+if procflgs.override && ~isinf(params.pw90) && ~isnan(params.pw90)
+    pw90 = params.pw90 * 1e-6; %90deg pulse width (s)
+    pwExp = pw90;
+elseif procflgs.jeol
+    pw90 = pars(1).x_H1_90REF;
+    pwExp = pars(1).x_H1_90REF;
+else
+    pw90 = pars(1).p(2) * 1e-6; %90deg pulse width (s)
+    pwExp = pw90;
+end
+
+% Pull in saturation amplitude values. If in dB, convert to Hz based upon 
+% 90deg pulse calibration (p1, pl1), or inputted pw90 value
+if procflgs.proc1dflg %1D: pull in values from each dataset
+    satdB=zeros(length(datadirs),1);
+    for ii=1:length(datadirs)
+        dBtemp=pars(ii).plw;
+        satdB(ii)=-log10(dBtemp(cfg.plval+1))*10;
+        if isinf(satdB(ii)) %catch very low powers
+            satdB(ii)=1000;
+        end
+        excdB=-log10(dBtemp(2))*10; %PLDB1, to use for nutation freq calc
+        disp('Calculating saturation amplitudes (in Hz) using P1 and PLDB1 parameters...')
+        B1_90 = 1 / 4 / pw90; %B1 nutation frequency corresponding with PLW1 (Hz)
+        satHz = B1_90 * 10 .^ ((excdB - satdB) / 10 / 2); %B1 saturation frequencies (Hz)
+    end
+%     nosatidx=find(satdB==1000); %get indices of spectra w/o saturation
+elseif procflgs.jeol %2D, JEOL: pull in Hz values from parameters
+    satHz=pars.x_SAT_B1;
+%     nosatidx=find(satHz==0); %get indices of spectra w/o saturation
+else %2D, Bruker: pull in dB values from valist
+    satdB=pars.valist(~isnan(pars.valist)); %remove NaN in 1st index (dB or W)
+    dBtemp=pars.plw;
+    excdB=-log10(dBtemp(2))*10; %PLDB1, to use for nutation freq calc 
+    disp('Calculating saturation amplitudes (in Hz) using P1 and PLDB1 parameters...')
+    B1_90 = 1 / 4 / pw90; %B1 nutation frequency corresponding with PLW1 (Hz)
+    satHz = B1_90 * 10 .^ ((excdB - satdB) / 10 / 2); %B1 saturation frequencies (Hz)    
+%     nosatidx=find(satdB==1000); %get indices of spectra w/o saturation
+end
+
+satHz = satHz * pwExp/pw90; 
+
+
+%% PARAMETER PARSING
+% Find non-saturated indices and pout together labels for spectra
+% depending on what was arrayed: B1, or Tsat
+if numel(satHz)>1 && numel(timing.tp)==1 %B1 varies
+    disp('Saturation pulse amplitudes are arrayed in the experiment(s).')
+    nosatidx=find(satHz<1e-3); %get indices of spectra w/ low B1 saturation
+    % Use amplitudes in uT and rad/s
+    satT = satHz' ./ gamma_;% * 1e6; %B1 saturation amplitudes (uT)
+    satRadS = satHz' * 2 * pi;
+    results.speclabels = cell(length(satT),1);
+    for ii = 1:length(satHz)
+        results.speclabels{ii} = [num2str(satT(ii),'%2.1f') ' \muT (' ...
+            num2str(satRadS(ii),'%4.0f') ' rad/s)'];
+    end
+elseif numel(timing.tp)>1 && numel(satHz)==1 %Tsat varies
+    disp('Saturation pulse durations are arrayed in the experiment(s).')
+    nosatidx=find(timing.tp<1e-3); %get indices of spectra w/ super short saturation
+    results.speclabels = cell(length(timing.tp),1);
+    for ii = 1:length(timing.tp)
+        results.speclabels{ii} = [num2str(timing.tp(ii),'%2.3f') ' s'];
+    end
+    satT = satHz ./ gamma_;
+    satRadS = satHz * 2 * pi;
+elseif numel(satHz)==1 && numel(timing.tp)==1 %only 1 B1 and Tsat combination
+    disp('Only one saturation pulse amplitude and duration used.')
+    nosatidx=[];
+    results.speclabels = cell(0);
+else
+    error(['Cannot process data! Either the pulse amplitude or duration ' ...
+        'must be arrayed, not both!'])
+end
+
+results.satHz=satHz(satHz>1e-9); %remove 0 Hz entries 
+results.satT=satT(satHz>1e-9); %remove 0 Hz entries 
+results.satRadS=satRadS(satHz>1e-9); %remove 0 Hz entries 
 
 results.omega_0_MHz=omega_0_MHz;
 end

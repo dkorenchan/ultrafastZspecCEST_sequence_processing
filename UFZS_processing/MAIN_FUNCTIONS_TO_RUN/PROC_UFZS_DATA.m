@@ -86,6 +86,11 @@ zspecPlot(results,procflgs.procConvflg,params.ppmwdw);
 
 %% Z-SPECTRAL FITTING, QUESP ANALYSIS
 % Perform z-spectral peak fitting, if indicated by procflgs.peakfit
+if numel(timing.tp)>1
+    disp(['Cannot currently perform spectral fitting when saturation ' ...
+        'pulse duration is arrayed! Skipping...'])
+    procflgs.peakfit=false;
+end
 if procflgs.peakfit
     results=zPeaks_fit_display(results,params,procflgs);
 else

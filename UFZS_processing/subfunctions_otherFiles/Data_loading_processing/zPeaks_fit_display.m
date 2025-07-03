@@ -96,7 +96,7 @@ for i = pvals
         ppars.pools,pfitvals,fixvals,ppars.ppmwt,true);
     title([ppars.peaktype ' fitting of z-spectrum, ' ...
         num2str(results.satT(i),'%1.2f') ' \muT (' ...
-        num2str(results.satHz(i),'%3.1f') ' Hz)'])
+        num2str(results.satRadS(i),'%3.1f') ' rad/s)'])
 
     % Store peak amplitudes + LWs in results, and reset fixvals. If  
     % peak offsets will be fit only once, detect which power index they  
