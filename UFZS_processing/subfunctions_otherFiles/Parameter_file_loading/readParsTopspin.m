@@ -26,10 +26,10 @@ for ii = 1:numel(parline)
         [token, rem] = strtok (line, '=');
         if strcmp(token, parline{ii})
             if contains(rem,'(') % detect if parameter is more than single value
-                line = fgetl(fin); % get next line
+                line = [fgetl(fin),' ']; % get next line; add space between values
                 while ~strcmp(line(1),'#') && ~strcmp(line(1),'$')
                     pars{ii} = [pars{ii} line];
-                    line = fgetl(fin);
+                    line = [fgetl(fin),' '];
                 end
             else
                 pars{ii} = rem(2:end); % cut out "=" sign

@@ -20,12 +20,25 @@
 %                       being the time/frequency axis
 %       otherdata   -   Struct containing parameter values obtained from
 %                       the Bruker parameter files
+%   Updated 12/2/25 by DK to be compatible with Topspin versions < 3
 %   
 function [data,otherdata]=ReadTopspinDataPars(aqpath,filestr)
 procpath = fullfile(aqpath,'pdata','1');
 
-acqusPars=readParsTopspin(aqpath,'acqus',{'##$TD','##$BYTORDA','##$DTYPA','##$D',...
-    '##$P','##$CNST','##$SW_h','##$SW','##$SFO1','##$PLW'});
+% First, let's figure out which version of Topspin is being run, so we know
+% how to read in the desired parameters! If below Topspin 3, we will need
+% to read in PL rather than PLW
+TSvertxt=readParsTopspin(aqpath,'acqus',{'##TITLE'});
+TSvertxtsplit=split(TSvertxt,' ');
+TSver=str2double(TSvertxtsplit{end}(1));
+
+if TSver<3
+    acqusPars=readParsTopspin(aqpath,'acqus',{'##$TD','##$BYTORDA','##$DTYPA','##$D',...
+        '##$P','##$CNST','##$SW_h','##$SW','##$SFO1','##$PL'});
+else
+    acqusPars=readParsTopspin(aqpath,'acqus',{'##$TD','##$BYTORDA','##$DTYPA','##$D',...
+        '##$P','##$CNST','##$SW_h','##$SW','##$SFO1','##$PLW'});
+end
 procsPars=readParsTopspin(procpath,'procs',{'##$BYTORDP','##$DTYPP',...
     '##$SF','##$OFFSET','##$SW_p','##$XDIM','##$SI'});
 if sum(strcmp(filestr,{'ser','2rr'}))>0 %also pull in 2D info
@@ -103,7 +116,11 @@ otherdata.cnst=str2num(acqusPars{6});
 otherdata.sw=str2double(acqusPars{7});
 otherdata.sw_p=str2double(acqusPars{8});
 otherdata.sfo1=str2double(acqusPars{9});
-otherdata.plw=str2num(acqusPars{10});
+if TSver<3
+    otherdata.pldb=str2num(acqusPars{10});
+else
+    otherdata.plw=str2num(acqusPars{10});
+end
 
 % end DK edits
 %flev=fopen(sprintf('%s/%s', procpath, 'level'), 'r');

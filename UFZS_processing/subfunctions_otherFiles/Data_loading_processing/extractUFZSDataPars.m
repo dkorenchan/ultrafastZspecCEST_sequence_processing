@@ -97,8 +97,12 @@ elseif procflgs.jeol %2D, JEOL: pull in Hz values from parameters
 %     nosatidx=find(satHz==0); %get indices of spectra w/o saturation
 else %2D, Bruker: pull in dB values from valist
     satdB=pars.valist(~isnan(pars.valist)); %remove NaN in 1st index (dB or W)
-    dBtemp=pars.plw;
-    excdB=-log10(dBtemp(2))*10; %PLDB1, to use for nutation freq calc 
+    if isfield(pars,'plw') %use PLW1 to calculate PLDB1 (Topspin version 3+)
+        dBtemp=pars.plw;
+        excdB=-log10(dBtemp(2))*10; %PLDB1, to use for nutation freq calc 
+    else %for Topspin version <3
+        excdB=pars.pldb(2);
+    end
     disp('Calculating saturation amplitudes (in Hz) using P1 and PLDB1 parameters...')
     B1_90 = 1 / 4 / pw90; %B1 nutation frequency corresponding with PLW1 (Hz)
     satHz = B1_90 * 10 .^ ((excdB - satdB) / 10 / 2); %B1 saturation frequencies (Hz)    
