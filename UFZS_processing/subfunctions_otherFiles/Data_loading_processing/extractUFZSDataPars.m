@@ -64,15 +64,9 @@ else
 end 
 
 % Pull in 90deg pulse calibration (for JEOL: also pull in actual "90deg" 
-% pulse used)
+% pulse used) + override if necessary
 if procflgs.override && ~isinf(params.pw90) && ~isnan(params.pw90)
     pw90 = params.pw90 * 1e-6; %90deg pulse width (s)
-    pwExp = pw90;
-elseif procflgs.jeol
-    pw90 = pars(1).x_H1_90REF;
-    pwExp = pars(1).x_H1_90REF;
-else
-    pw90 = pars(1).p(2) * 1e-6; %90deg pulse width (s)
     pwExp = pw90;
 end
 
@@ -92,8 +86,8 @@ if procflgs.proc1dflg %1D: pull in values from each dataset
         satHz = B1_90 * 10 .^ ((excdB - satdB) / 10 / 2); %B1 saturation frequencies (Hz)
     end
 %     nosatidx=find(satdB==1000); %get indices of spectra w/o saturation
-elseif procflgs.jeol %2D, JEOL: pull in Hz values from parameters
-    satHz=pars.x_SAT_B1;
+elseif procflgs.jeol %2D, JEOL: pull in Hz values from parameters (+ correct based on pwExp)
+    satHz=pars.x_SAT_B1.*pars(1).x_H1_90REF./pwExp;
 %     nosatidx=find(satHz==0); %get indices of spectra w/o saturation
 else %2D, Bruker: pull in dB values from valist
     satdB=pars.valist(~isnan(pars.valist)); %remove NaN in 1st index (dB or W)
@@ -113,7 +107,7 @@ satHz = satHz * pwExp/pw90;
 
 
 %% PARAMETER PARSING
-% Find non-saturated indices and pout together labels for spectra
+% Find non-saturated indices and put together labels for spectra
 % depending on what was arrayed: B1, or Tsat
 if numel(satHz)>1 && numel(timing.tp)==1 %B1 varies
     disp('Saturation pulse amplitudes are arrayed in the experiment(s).')
