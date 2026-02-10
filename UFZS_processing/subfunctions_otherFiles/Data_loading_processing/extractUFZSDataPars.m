@@ -63,11 +63,18 @@ else
     end
 end 
 
-% Pull in 90deg pulse calibration (for JEOL: also pull in actual "90deg" 
-% pulse used) + override if necessary
+% Pull in actual 90deg pulse width used 
+if procflgs.jeol
+    pw90Exp = pars(1).x_H1_90REF;
+else
+    pw90Exp = pars(1).p(2) * 1e-6; %90deg pulse width (s)
+end
+
+% If calibrated 90deg pulse width overridden, pull this in
 if procflgs.override && ~isinf(params.pw90) && ~isnan(params.pw90)
-    pw90 = params.pw90 * 1e-6; %90deg pulse width (s)
-    pwExp = pw90;
+    pw90True = params.pw90 * 1e-6; %90deg pulse width (s)
+else
+    pw90True = pw90Exp;
 end
 
 % Pull in saturation amplitude values. If in dB, convert to Hz based upon 
@@ -82,12 +89,12 @@ if procflgs.proc1dflg %1D: pull in values from each dataset
         end
         excdB=-log10(dBtemp(2))*10; %PLDB1, to use for nutation freq calc
         disp('Calculating saturation amplitudes (in Hz) using P1 and PLDB1 parameters...')
-        B1_90 = 1 / 4 / pw90; %B1 nutation frequency corresponding with PLW1 (Hz)
+        B1_90 = 1 / 4 / pw90True; %B1 nutation frequency corresponding with PLW1 (Hz)
         satHz = B1_90 * 10 .^ ((excdB - satdB) / 10 / 2); %B1 saturation frequencies (Hz)
     end
 %     nosatidx=find(satdB==1000); %get indices of spectra w/o saturation
 elseif procflgs.jeol %2D, JEOL: pull in Hz values from parameters (+ correct based on pwExp)
-    satHz=pars.x_SAT_B1.*pars(1).x_H1_90REF./pwExp;
+    satHz=pars.x_SAT_B1.*pw90Exp./pw90True;
 %     nosatidx=find(satHz==0); %get indices of spectra w/o saturation
 else %2D, Bruker: pull in dB values from valist
     satdB=pars.valist(~isnan(pars.valist)); %remove NaN in 1st index (dB or W)
@@ -98,12 +105,12 @@ else %2D, Bruker: pull in dB values from valist
         excdB=pars.pldb(2);
     end
     disp('Calculating saturation amplitudes (in Hz) using P1 and PLDB1 parameters...')
-    B1_90 = 1 / 4 / pw90; %B1 nutation frequency corresponding with PLW1 (Hz)
+    B1_90 = 1 / 4 / pw90True; %B1 nutation frequency corresponding with PLW1 (Hz)
     satHz = B1_90 * 10 .^ ((excdB - satdB) / 10 / 2); %B1 saturation frequencies (Hz)    
 %     nosatidx=find(satdB==1000); %get indices of spectra w/o saturation
 end
 
-satHz = satHz * pwExp/pw90; 
+% satHz = satHz * pwExp/pw90; 
 
 
 %% PARAMETER PARSING
