@@ -48,7 +48,13 @@ end
 results.specppm=linspace(sw_ppm/2,-sw_ppm/2,np);
 
 if procflgs.procConvflg
-    results.satppm=pars.x_SAT_OFF_RWAT;
+    if isfield(pars,'x_SAT_OFF_RWAT')
+        results.satppm=pars.x_SAT_OFF_RWAT;
+    elseif isfield(pars,'x_SAT_OFF_RMT')
+        results.satppm=pars.x_SAT_OFF_RMT;
+    else
+        error('Could not find saturation offsets! Double-check dataset.')
+    end
 end
 
 % Pull in timing parameters: saturation pulse duration, recovery delay
