@@ -42,7 +42,8 @@ else %pull in data from fid (1D) or ser (2D) file(s)
     if pflgs.jeol
         if pflgs.procConvflg %process conventional CEST data
             for ii=1:numel(ddirs)
-                disp(['Loading file ' num2str(ii) ' of ' num2str(numel(ddirs)) '...'])
+                disp(['Loading file ' num2str(ii) ' of ' ...
+                    num2str(numel(ddirs)) ': ' ddirs{ii} '...'])
                 [temp,pars]=ReadJEOLjdx(fullfile(pathn,ddirs{ii}));
                 fid(ii,:,:)=temp;
             end

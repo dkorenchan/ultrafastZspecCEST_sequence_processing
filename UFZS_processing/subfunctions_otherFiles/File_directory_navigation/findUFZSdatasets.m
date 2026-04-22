@@ -24,7 +24,7 @@ function [pathname,dirs,pflgs]=findUFZSdatasets(cfg,pflgs)
 
 dirs1d=cell(length(dirfind),1);
 dirs2d=dirs1d;
-dirsConv=dirs1d;
+dirsConv=cell(0);
 ctr1d=1;
 ctr2d=1;
 

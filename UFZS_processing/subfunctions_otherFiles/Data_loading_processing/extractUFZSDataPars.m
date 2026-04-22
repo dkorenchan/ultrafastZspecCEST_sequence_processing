@@ -50,8 +50,22 @@ results.specppm=linspace(sw_ppm/2,-sw_ppm/2,np);
 if procflgs.procConvflg
     if isfield(pars,'x_SAT_OFF_RWAT')
         results.satppm=pars.x_SAT_OFF_RWAT;
+        for ii=find(~strcmp(pars.x_SAT_OFF_RWAT_Units,'ppm')) %convert (k)Hz to ppm
+            if strcmp(pars.x_SAT_OFF_RWAT_Units(ii),'kHz')
+                results.satppm(ii)=results.satppm(ii)/omega_0_MHz*1000;
+            elseif strcmp(pars.x_SAT_OFF_RWAT_Units(ii),'Hz')
+                results.satppm(ii)=results.satppm(ii)/omega_0_MHz;
+            end
+        end
     elseif isfield(pars,'x_SAT_OFF_RMT')
         results.satppm=pars.x_SAT_OFF_RMT;
+        for ii=find(~strcmp(pars.x_SAT_OFF_RMT_Units,'ppm')) %convert (k)Hz to ppm
+            if strcmp(pars.x_SAT_OFF_RMT_Units(ii),'kHz')
+                results.satppm(ii)=results.satppm(ii)/omega_0_MHz*1000;
+            elseif strcmp(pars.x_SAT_OFF_RMT_Units(ii),'Hz')
+                results.satppm(ii)=results.satppm(ii)/omega_0_MHz;
+            end
+        end
     else
         error('Could not find saturation offsets! Double-check dataset.')
     end

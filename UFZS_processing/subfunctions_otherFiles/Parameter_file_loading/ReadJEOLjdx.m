@@ -77,7 +77,7 @@ while ~feof(fin)
                 %with units specified, or arrays
                 if length(value)<60 || strcmp(value(end),'}') %can only 
                     %parse text successfully if it ends in '}'
-                    otherdata.(key) = parseJEOLtextParam(value);
+                    [otherdata.(key), otherdata.([key '_Units'])] = parseJEOLtextParam(value);
                 else
                     otherdata.(key) = value;
                 end
@@ -95,7 +95,7 @@ while ~feof(fin)
         temp=otherdata.(key);
         otherdata.(key)=[temp tline];
         if strcmp(otherdata.(key)(end),'}') %parse out once '}' has been reached
-            otherdata.(key) = parseJEOLtextParam(otherdata.(key));
+            [otherdata.(key), otherdata.([key '_Units'])] = parseJEOLtextParam(otherdata.(key));
         end
     end
 end
