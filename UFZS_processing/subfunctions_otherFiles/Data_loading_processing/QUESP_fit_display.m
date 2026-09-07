@@ -32,25 +32,38 @@ else
     MTRflg=false;
 end
 
-% Prompt user for other required values
-prompt = {'Water 1H T1 (s):'};
-dlg_title = 'QUESP fitting parameters';
-num_lines = 1;
-def = {'4.2'};
-if MTRflg %also ask for ppm value for MTRasym calculation
-    prompt(2) = {'Chemical shift value for QUESP fitting (ppm):'};
-    def(2) = {'3.5'};   
-end
-answer = inputdlg(prompt,dlg_title,num_lines,def);
-results.T1w = str2double(answer{1});  
-if MTRflg %also ask for ppm value for MTRasym calculation
-    results.QUESPppm = str2double(answer{2});  
-    % Obtain z-spectral values corresponding to inputted ppm value
-    ppm_error = (results.QUESPppm - results.zasymppm) ./ results.QUESPppm; 
-        %use to find index for QUESP fitting
+% Prompt for T1 only if not already provided by a prior fitting step
+% (e.g. invZ_R1cos2th_fit_display stores it in results.T1w)
+if ~isfield(results,'T1w') || isempty(results.T1w) || isnan(results.T1w)
+    prompt = {'Water 1H T1 (s):'};
+    dlg_title = 'QUESP fitting parameters';
+    num_lines = 1;
+    def = {'4.2'};
+    if MTRflg %also ask for ppm value for MTRasym calculation
+        prompt(2) = {'Chemical shift value for QUESP fitting (ppm):'};
+        def(2) = {'3.5'};   
+    end
+    answer = inputdlg(prompt,dlg_title,num_lines,def);
+    results.T1w = str2double(answer{1});  
+    if MTRflg %also ask for ppm value for MTRasym calculation
+        results.QUESPppm = str2double(answer{2});  
+        % Obtain z-spectral values corresponding to inputted ppm value
+        ppm_error = (results.QUESPppm - results.zasymppm) ./ results.QUESPppm; 
+            %use to find index for QUESP fitting
+    else
+        % Remove water from pools list prior to QUESP fitting
+        ppars.pools = ppars.pools(~strcmp(ppars.pools,'water'));
+    end
 else
-    % Remove water from pools list prior to QUESP fitting
-    ppars.pools = ppars.pools(~strcmp(ppars.pools,'water'));
+    disp(['Using T1w = ' num2str(results.T1w,'%1.3f') ' s from prior 1/Z fitting step.'])
+    if MTRflg
+        answer_ppm = inputdlg({'Chemical shift value for QUESP fitting (ppm):'}, ...
+            'QUESP fitting parameters',1,{'3.5'});
+        results.QUESPppm = str2double(answer_ppm{1});
+        ppm_error = (results.QUESPppm - results.zasymppm) ./ results.QUESPppm;
+    else
+        ppars.pools = ppars.pools(~strcmp(ppars.pools,'water'));
+    end
 end
 
 % Perform QUESP fitting for each pool, treating the 'MTRasym' pool
@@ -65,7 +78,7 @@ for i = 1:numel(ppars.pools)
         if size(z_lab,2) > 1 %catch error: took 2 ppm values
             z_lab = z_lab(:,1);
         end
-        qptitle=['QUESP Fitting, ' answer{2} ' ppm'];
+        qptitle=['QUESP Fitting, ' num2str(results.QUESPppm) ' ppm'];
     else
         z_lab=1-results.peakfit.(ppars.pools{i});
         qptitle=['QUESP Fitting, ' ppars.pools{i} ' ' ppars.peaktype];

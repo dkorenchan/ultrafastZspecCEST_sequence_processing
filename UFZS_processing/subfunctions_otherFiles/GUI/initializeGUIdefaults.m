@@ -10,7 +10,8 @@
 %       params      -   Struct containing numerical values/strings for data
 %                       processing specifications
 %
-function [procflgs,params]=initializeGUIdefaults
+function [procflgs,params]=initializeGUIdefaults(skipSaved)
+if nargin < 1, skipSaved = false; end
 procflgs.override = false; %if true, user is able to override acq/proc  
     %parameters pulled in from the dataset
 params.pw90 = Inf; %true 90 pulse width to use to calculate saturation amplitudes
@@ -48,6 +49,25 @@ procflgs.fix=true; %if true, peak offsets at specified power index used
     %for fitting for all other powers
 params.fixind=2; %index in power list of spectrum to use for fixing 
     %fitted peak offsets 
-procflgs.MTsuperLorentz=true; %if true, MT pool will be fitted using a 
-    %super-Lorentzian lineshape
+procflgs.MTsuperLorentz=true; %true when MTlineshape is 'superlorentzian' (kept for conventional path)
+params.MTlineshape='superlorentzian'; %MT lineshape for invZ pre-fitting: 'lorentzian','gaussian','superlorentzian'
+procflgs.invZfit=true; %true = 1/Z fitting (default); false = conventional Z fitting
+procflgs.saveDefaults=false; %never auto-checked; set true in GUI to persist current selections
+
+if ~skipSaved
+    % Override hardcoded defaults with any previously saved user selections
+    defaultsFile = fullfile(fileparts(mfilename('fullpath')), 'UFZS_GUI_defaults.mat');
+    if exist(defaultsFile, 'file')
+        saved = load(defaultsFile);
+        fns = fieldnames(saved.procflgs_saved);
+        for i = 1:numel(fns)
+            procflgs.(fns{i}) = saved.procflgs_saved.(fns{i});
+        end
+        fns = fieldnames(saved.params_saved);
+        for i = 1:numel(fns)
+            params.(fns{i}) = saved.params_saved.(fns{i});
+        end
+        procflgs.saveDefaults = false; % never persist the save flag itself
+    end
+end
 end

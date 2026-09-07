@@ -1,12 +1,19 @@
 function [EstimatedParams,CI,Residual,Sum_All_P,Indiv_P]=...
-    ufzsMultiPeakFit(w,OneMinZ,omega_0_MHz,pNames,pPars,fixedVals,ppm_wt,PlotDispFlag)
+    ufzsMultiPeakFit_R1divZ_cos2th_v2(w_ppm,w1_Hz,invZ,invZ_backgd,R1w,...
+    omega_0_MHz,pNames,pPars,fixedVals,ppm_wt,PlotDispFlag)
 % Purpose: Multi-peak model fit: Lorentzian, Pseudo-Voigt, or
 % super-Lorentzian
 % Created: 09/28/18 by OP
+% Updated by DK on 9/29/25 to fit inverse Z spectral CEST peaks using the 
+% pre-fitted MT profile
 %------------------------input variables-------------------------------------%
 % ----Measured (MR de facto scanned) values:
-% w - offset frequency [ppm]
-% OneMinZ=1-Z=1-Measured Z(delta_w) =1-Mz/Mz0
+% w_ppm - offset frequency [ppm]
+% w1_Hz -  B1 nutation value of saturation pulse [Hz]  
+% invZ=total 1/Z*R1cos^2(theta)
+% invZ_backgd=fitted 1/Z*R1cos^2(theta) for background (e.g. MT) - NOTE:
+% does NOT include R1 added to it!
+% R1w - Water relaxation rate [s^-1]
 % omega_0_MHz - 1H Larmor frequency, in MHz
 % pNames -  cell array of fieldnames of pPars and fixedVals corresponding to 
 %           peaks to fit
@@ -106,25 +113,26 @@ end
 
 % Detect whether only pools specified are water and (optionally) NOE, for
 % negative ppm fitting
-if sum(strcmp(pNames,'water'))+sum(strcmp(pNames,'NOE'))+sum(strcmp(pNames,'MT')) == numel(pNames)
+if sum(strcmp(pNames,'water'))+sum(strcmp(pNames,'NOE'))...
+        +sum(strcmp(pNames,'MT')) == numel(pNames)
     negppmflg = true;
 else
     negppmflg = false;
 end
 
 % Fill in unspecified parameters
-if nargin < 6
+if nargin < 9
     for ii = 1:numel(pNames)
         name = pNames{ii};
         fixedVals.(name) = NaN(nPars,1);
     end
     ppm_wt = NaN;
-    PlotDispFlag = false;
-elseif nargin < 7
+    PlotDispFlag = true;
+elseif nargin < 10
     ppm_wt = NaN;
-    PlotDispFlag = false;    
-elseif nargin < 8
-    PlotDispFlag = false;
+    PlotDispFlag = true;    
+elseif nargin < 11
+    PlotDispFlag = true;
 end
 
 % Fix specified values using non-NaN values in fixedVals
@@ -173,6 +181,11 @@ for ii = 1:numel(pNames)
     Full_Model_lb((nPars*(ii-1)+1):(nPars*ii))=pPars.(name).lb(1:nPars);
     Full_Model_ub((nPars*(ii-1)+1):(nPars*ii))=pPars.(name).ub(1:nPars);
 end
+
+% Calculate cos^2(theta) for water fitting
+w_Hz=w_ppm*omega_0_MHz;
+cosSqTheta=(w_Hz).^2./((w_Hz).^2+(w1_Hz)^2);
+
 %---------------------------------------------------------------------%
 %*********************************************************************
 
@@ -184,9 +197,10 @@ if negppmflg
 %     fitpts = (length(w)/2+1):(length(w)*2/3);
 %     fitpts=find(w<0 & w>-5);
 %     fitpts=find(w<0 | w>11);   %used to fit negative ppm + the highest positive ppm vals for (water + NOE + MT)    
-    fitpts=find(w<0);   %used to fit negative ppm + the highest positive ppm vals for (water + NOE + MT)    
+%     fitpts=find(w<0);   %used to fit negative ppm vals for (water + NOE + MT)    
+    fitpts=find((w_ppm>-1 & w_ppm<1)|(w_ppm<-8)|(w_ppm>8)); %used to fit water + MT only
 else
-    fitpts = 1:length(w);
+    fitpts = 1:length(w_ppm);
 end
 
 % [EstimatedParams,resnorm,Residual,~,~,~,jacobian]=...
@@ -196,8 +210,9 @@ end
 % opt=optimoptions('lsqnonlin','MaxFunctionEvaluations',6000,...
 %     'MaxIterations',4000,'FunctionTolerance',1e-12,'StepTolerance',1e-12);
 [EPvec,resnorm,Residual,~,~,~,jacobian]=...
-    lsqnonlin(@(x) peakFitFcn(x,pNames,w(fitpts),OneMinZ(fitpts),...
-    omega_0_MHz,ppm_wt,peakType,samePVcharflg,superLorentzflg),...
+    lsqnonlin(@(x) peakFitFcn(x,pNames,w_ppm(fitpts),cosSqTheta(fitpts),...
+    invZ(fitpts),invZ_backgd(fitpts),R1w,omega_0_MHz,ppm_wt,peakType,...
+    samePVcharflg,superLorentzflg),...
     Full_Model_x0,Full_Model_lb,Full_Model_ub);%,opt);
 
 notWaterMTidx=find(~strcmp(pNames,'water') & ~strcmp(pNames,'MT'));
@@ -215,19 +230,19 @@ EPvec=EPvec.'; % transposing to get a column vector
 CIvec=nlparci(EPvec,Residual,'jacobian',jacobian);
 
 % Getting the full spectrum + individual peaks using the estimated parmeters
-Sum_All_P=zeros(size(w));
+Sum_All_P=R1w*cosSqTheta+invZ_backgd;
 for ii = 1:numel(pNames)
     name = pNames{ii};
     EstimatedParams.(name) = EPvec((nPars*(ii-1)+1):(nPars*ii));
     CI.(name) = CIvec((nPars*(ii-1)+1):(nPars*ii),:);
     if strcmp(name,'MT') && superLorentzflg %use super-Lorentzian for MT
-        Indiv_P.(name) = ufzsSingleSuperLorentzModel(EstimatedParams.(name),w,omega_0_MHz);
+        Indiv_P.(name) = ufzsSingleSuperLorentzModel(EstimatedParams.(name),w_ppm,omega_0_MHz);
     else
         switch peakType
             case 'lorentz'
-                Indiv_P.(name) = ufzsSingleLorentzianModel(EstimatedParams.(name),w);
+                Indiv_P.(name)=cosSqTheta.*ufzsSingleLorentzianModel(EstimatedParams.(name),w_ppm);
             case 'pseudovoigt'
-                Indiv_P.(name) = ufzsSinglePseudoVoigtModel(EstimatedParams.(name),w);
+                Indiv_P.(name)=cosSqTheta.*ufzsSinglePseudoVoigtModel(EstimatedParams.(name),w_ppm);
         end
     end
     Sum_All_P=Sum_All_P+Indiv_P.(name);
@@ -240,18 +255,21 @@ if PlotDispFlag
     figure
     h1=axes;
 %     h1 = gca;
-    plot(w,OneMinZ,'Marker','o','Color',[0.5 0.5 0.5],'MarkerFaceColor',[0.5 0.5 0.5],'LineWidth',1.5,'LineStyle','none')
-    hold on; plot(w,Sum_All_P,'k-','LineWidth',2)
+    plot(w_ppm,invZ,'Marker','o','Color',[0.5 0.5 0.5],'MarkerFaceColor',[0.5 0.5 0.5],'LineWidth',1.5,'LineStyle','none')
+    hold on; plot(w_ppm,Sum_All_P,'k-','LineWidth',2)
+    plot(w_ppm,invZ_backgd,'b-','LineWidth',2)
     for ii = 1:numel(pNames)
         name = pNames{ii};
-        hold on; plot(w,Indiv_P.(name),plotvis{1+mod(ii-1,numel(plotvis))},...
+        hold on; plot(w_ppm,Indiv_P.(name),plotvis{1+mod(ii,numel(plotvis))},...
             'LineWidth',2)
     end
-    axis([min(w) max(w) 0 1]);
+    plot(w_ppm,R1w*cosSqTheta,plotvis{2+mod(numel(pNames),numel(plotvis))},...
+        'LineWidth',2);
+    axis([min(w_ppm) max(w_ppm) 0 Inf]);
     set(h1, 'Xdir', 'reverse') %reversing axis display
     xlabel('\Delta\omega [ppm]')
-    ylabel('Z(\Delta\omega)')
-    legend([{'Raw data','Sum'},pNames])
+    ylabel('R_1cos^2(\theta) / Z(\Delta\omega)')
+    legend([{'Raw data','Sum','MT'},pNames,{'R_1cos^2\theta'}])
     grid on
     
     %%--------- displaying resulting parameters-----------%
@@ -314,12 +332,12 @@ if PlotDispFlag
 end
 end
 
-function res = peakFitFcn(x,pools,w,data,w0,ppm_wt,peakType,...
+function res = peakFitFcn(x,pools,w,cos2th,data,backgd,R1,w0,ppm_wt,peakType,...
     PVcharConstrain,MTsuperLorentz)
-if nargin < 8
+if nargin < 10
     PVcharConstrain=false;
     MTsuperLorentz=false;
-elseif nargin < 9
+elseif nargin < 11
     MTsuperLorentz=false;    
 end
 
@@ -330,15 +348,19 @@ switch peakType
         npar=6;
 end
 
-fit = zeros(size(w));
+fit = R1*cos2th + backgd;
 notWaterMTidx=find(~strcmp(pools,'water') & ~strcmp(pools,'MT'));
 for iii = 1:numel(pools)
     if strcmp(pools{iii},'MT') && MTsuperLorentz %fit MT to super-Lorentzian
-        fit = fit + ufzsSingleSuperLorentzModel(x((npar*(iii-1)+1):(npar*iii)),w,w0);
+        fit = fit+ufzsSingleSuperLorentzModel(x((npar*(iii-1)+1):(npar*iii)),w,w0);
     else
         switch peakType
             case 'lorentz'
-                fit = fit + ufzsSingleLorentzianModel(x((npar*(iii-1)+1):(npar*iii)),w);
+%                 if strcmp(pools{iii},'water') %weight fit by cos^2(theta)
+                    fit=fit+cos2th.*ufzsSingleLorentzianModel(x((npar*(iii-1)+1):(npar*iii)),w);
+%                 else
+%                     fit=fit+ufzsSingleLorentzianModel(x((npar*(iii-1)+1):(npar*iii)),w);
+%                 end
             case 'pseudovoigt'
                 if PVcharConstrain && ~strcmp(pools{iii},'water') 
                     %override alpha and FWHMrat with values from 1st non-water 
@@ -346,7 +368,7 @@ for iii = 1:numel(pools)
                     x(npar*(iii-1)+2)=x(npar*(notWaterMTidx(1)-1)+2);
                     x(npar*(iii-1)+4)=x(npar*(notWaterMTidx(1)-1)+4);
                 end
-                fit=fit+ufzsSinglePseudoVoigtModel(x((npar*(iii-1)+1):(npar*iii)),w);
+                fit=fit+cos2th.*ufzsSinglePseudoVoigtModel(x((npar*(iii-1)+1):(npar*iii)),w);
         end
     end
 end
@@ -359,6 +381,7 @@ if ~all(isnan(ppm_wt)) %apply ppm-specific weighting
     end
     res = res .* wt;
 end
+% res(res<0)=res(res<0)*10; %STRONGLY penalize overcutting data!
 end
 
 % ufzsSingleLorentzianModel:    Generates single Lorentzian peak with input

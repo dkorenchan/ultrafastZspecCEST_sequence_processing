@@ -60,12 +60,14 @@ if procflgs.peakfit
     elseif strcmp(params.peaktype,'Lorentzian')
         disp('--Peak fitting: will use Lorentzian lineshapes.')
     end
-    if procflgs.water1st
-        disp(['--Peak fitting: water (+ NOE and/or MT) will be fit first for each power '...
-            'using negative ppm values, then all other peaks will be fit'])
-    else
-        disp('--Peak fitting: all peaks will be fit simultaneously for each power')
-    end    
+    if ~procflgs.invZfit
+        if procflgs.water1st
+            disp(['--Peak fitting: water (+ NOE and/or MT) will be fit first for each power '...
+                'using negative ppm values, then all other peaks will be fit'])
+        else
+            disp('--Peak fitting: all peaks will be fit simultaneously for each power')
+        end
+    end
     if procflgs.fix
         disp(['--Peak fitting: will use peak offsets from power index ' ...
             num2str(params.fixind) ' for all other fits'])
@@ -76,8 +78,16 @@ if procflgs.peakfit
         disp(['----Fitting will focus on the following ppm value(s): [' ...
             num2str(params.ppmwt) ']'])
     end
-    if procflgs.MTsuperLorentz
-        disp('--Peak fitting: MT pool will be fit to a super-Lorentzian lineshape')
+    if any(strcmp(params.pools,'MT')) && ~procflgs.invZfit
+        disp(['--Peak fitting: MT pool lineshape: ' params.MTlineshape])
+    end
+    if procflgs.invZfit
+        disp(['--Peak fitting: will use R1*cos^2(theta)*(1/Z-1) fitting; ' ...
+            'T1 will be prompted at fitting time'])
+        if any(strcmp(params.pools,'MT'))
+            disp(['----MT pool will be pre-fitted in Z-space (' ...
+                params.MTlineshape ' lineshape) and used as background'])
+        end
     end    
 else
     disp('MTR asymmetry at user-specified ppm value will be performed for QUESP analysis')

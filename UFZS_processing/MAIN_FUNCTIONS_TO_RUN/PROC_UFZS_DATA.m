@@ -92,7 +92,13 @@ if numel(timing.tp)>1
     procflgs.peakfit=false;
 end
 if procflgs.peakfit
-    results=zPeaks_fit_display(results,params,procflgs);
+    if procflgs.invZfit
+        % R1*cos^2(theta)*(1/Z-1) fitting with optional MT pre-fit
+        [results,params]=invZ_R1cos2th_fit_display(results,params,procflgs,timing);
+    else
+        results=zPeaks_fit_display(results,params,procflgs);
+%         results=invZpeaks_fit_display(results,params,procflgs);
+    end
 else
     params.pools={'MTRasym'}; %this is used later on
 end

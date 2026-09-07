@@ -21,7 +21,7 @@
 function x = setPVPeakBounds()
 %Water pool
 x.water.st= [0.9    .3  1.4     1   0       0       ];  % initial value
-x.water.lb= [0.3    0   0.3     1   0       0       ];%-pi/24  ];  % lower bound
+x.water.lb= [0.1    0   0.3     1   0       0       ];%-pi/24  ];  % lower bound
 x.water.ub= [1.0    1   10      2   0       0       ];%pi/24   ];  % upper bound
 
 % OH pool
@@ -61,11 +61,11 @@ x.ppm9pt8.ub= [0.8    1   3.0     2   11.0    0       ];  % upper bound
 
 % NOE pool
 x.NOE.st=   [0.1    .3  2       1   -3.5    0       ];  % initial value 
-x.NOE.lb=   [0.0    0   1       1   -4      0       ];  % lower bound
-x.NOE.ub=   [0.4    1   6       2   -3      0       ];  % upper bound 
+x.NOE.lb=   [0.0    0   1       1   -4.5    0       ];  % lower bound
+x.NOE.ub=   [0.4    1   6       2   -2.5    0       ];  % upper bound 
 
 % MT pool
 x.MT.st=    [0.1    0   30      1   0       0       ];  % initial value 
-x.MT.lb=    [0.0    0   15      1   0       0       ];  % lower bound
-x.MT.ub=    [0.6    1   50      2   1       0       ];  % upper bound 
+x.MT.lb=    [0.0    0   10      1   0       0       ];  % lower bound
+x.MT.ub=    [0.8    1   80      2   1       0       ];  % upper bound 
 end

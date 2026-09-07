@@ -16,6 +16,6 @@
 function x = setSLPeakBounds()
 % MT pool
 x.st=       [0.1    30      0   0   0   0];  % initial value 
-x.lb=       [0.0    10      0   0   0   0];  % lower bound
-x.ub=       [0.6    50      1   0   0   0];  % upper bound 
+x.lb=       [0.0    5       0   0   0   0];  % lower bound
+x.ub=       [0.8    50      1   0   0   0];  % upper bound 
 end

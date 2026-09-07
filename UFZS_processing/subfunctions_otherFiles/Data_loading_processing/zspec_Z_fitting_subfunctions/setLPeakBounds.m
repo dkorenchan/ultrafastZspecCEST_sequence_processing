@@ -49,6 +49,11 @@ x.NOE.st=   [0.1    1.5     -3.5    0       ];      % initial value
 x.NOE.lb=   [0.0    1       -4      0       ];      % lower bound
 x.NOE.ub=   [0.4    4.5     -3      0       ];      % upper bound
 
+% MT pool
+x.MT.st=    [0.1    20      0       0       ];  % initial value 
+x.MT.lb=    [0.0    10      -1      0       ];  % lower bound
+x.MT.ub=    [0.2    30      1       0       ];  % upper bound 
+
 % Trp indole proton pool
 x.Trp.st=   [0.01   10.0    5.4     0       ];      % initial value 
 x.Trp.lb=   [0      0.2     5.1     0       ];      % lower bound
