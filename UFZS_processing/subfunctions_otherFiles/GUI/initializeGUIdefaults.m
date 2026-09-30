@@ -20,8 +20,11 @@ procflgs.topproc = false; %if true, data are loaded with processing previously
 params.zf = 16; %factor by which data will be zerofilled
 params.filter = 'exponential'; %type of FID weighting (current options: 
     %['exponential','gaussian']
-params.ap = 100; %spectral apodization (Hz)
+params.ap = 10; %spectral apodization (Hz)
 params.edge = 40; %Gaussian filter attenuation at ends of FID (dB)
+procflgs.rect = true; %if true, FID is also multiplied by a rect window
+    %(ultrafast data only) zeroing the first + last params.rectpct % of points
+params.rectpct = 10; %percent of FID points zeroed at each end by rect window
 % params.zeropts = 200; %number of points to set to zero at beginning + end of filter
 params.ppmwdw=8; %adjusts ppm window of z-spectra: spectral values kept  
     %within +/-ppmwdw

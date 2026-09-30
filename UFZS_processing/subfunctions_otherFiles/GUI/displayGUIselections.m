@@ -27,6 +27,10 @@ else
         disp(['--FID will be weighted with Gaussian filter, attenuation ' ...
             num2str(params.edge) ' dB at FID ends'])        
     end
+    if procflgs.rect
+        disp(['--FID will also be multiplied by rect window, zeroing first and last ' ...
+            num2str(params.rectpct) '% of points (ultrafast data only)'])
+    end
 end
 if procflgs.norm
     disp('Normalization of raw spectra will be performed:')
@@ -59,6 +63,9 @@ if procflgs.peakfit
         end
     elseif strcmp(params.peaktype,'Lorentzian')
         disp('--Peak fitting: will use Lorentzian lineshapes.')
+    elseif strcmp(params.peaktype,'Rex')
+        disp(['--Peak fitting: Rex mode (Zaiss & Bachert 2013 Eq.23, R2b=0); ' ...
+            '2D joint fit returns fb and kb per pool directly (QUESP skipped).'])
     end
     if ~procflgs.invZfit
         if procflgs.water1st

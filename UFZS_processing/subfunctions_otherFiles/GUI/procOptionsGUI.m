@@ -59,6 +59,14 @@ ui.topproc.gauss.edgeset = uieditfield(ui.topproc.bgrp,'numeric','Tag','edge',..
 ui.topproc.gauss.edgelab = uilabel(ui.topproc.bgrp,'Position',[160 10 600 20],...
     'Visible',strcmp(params.filter,'gaussian'),...
     'Text','Gaussian filter attenuation at FID endpoints (dB)');
+ui.topproc.rectchk = uicheckbox(ui.topproc.bgrp,'Position',[330 50 130 20],...
+    'Tag','rect','Value',procflgs.rect,'ValueChangedFcn',@toggleFlag,...
+    'Text','Rect window:');
+ui.topproc.rectpctset = uieditfield(ui.topproc.bgrp,'numeric','Tag','rectpct',...
+    'Position',[460 50 40 20],'Visible',procflgs.rect,...
+    'Limits',[0 50],'Value',params.rectpct,'ValueChangedFcn',@setParam);
+ui.topproc.rectpctlab = uilabel(ui.topproc.bgrp,'Position',[505 50 110 20],...
+    'Visible',procflgs.rect,'Text','% zeroed each end');
 
 uilabel(paramfig,'Position',[20 442 800 20],...
     'Text','Window size for displaying z-spectra (+/- ppm):');
@@ -124,6 +132,9 @@ ui.peakfit.Lorentzset = uiradiobutton(ui.peakfit.bgrp,'Position',[210 190 90 20]
     'Parent',ui.peakfit.bgrp);
 ui.peakfit.PseudoVoigtset = uiradiobutton(ui.peakfit.bgrp,'Position',[100 190 90 20],...
     'Value',strcmp(params.peaktype,'Pseudo-Voigt'),'Text','Pseudo-Voigt',...
+    'Parent',ui.peakfit.bgrp);
+ui.peakfit.Rexset = uiradiobutton(ui.peakfit.bgrp,'Position',[305 190 55 20],...
+    'Value',strcmp(params.peaktype,'Rex'),'Text','Rex',...
     'Parent',ui.peakfit.bgrp);
 ui.peakfit.PVcharconstr = uicheckbox(ui.peakfit.bgrp,'Position',[100 170 450 20],...
     'Visible',strcmp(params.peaktype,'Pseudo-Voigt'),'Tag','PVcharconstr',...
@@ -215,6 +226,8 @@ for iii = 1:numel(flgnames)
     end
 end
 % Change visibility of other flags
+set(ui.topproc.rectpctset,'Visible',procflgs.rect);
+set(ui.topproc.rectpctlab,'Visible',procflgs.rect);
 set(ui.peakfit.fixind,'Visible',procflgs.fix);
 set(ui.peakfit.fixlab,'Visible',procflgs.fix);
 set(ui.peakfit.ppmwtset,'Visible',procflgs.ppmwt);
@@ -247,6 +260,8 @@ if ui.peakfit.Lorentzset.Value
     params.peaktype='Lorentzian';
 elseif ui.peakfit.PseudoVoigtset.Value
     params.peaktype='Pseudo-Voigt';
+elseif ui.peakfit.Rexset.Value
+    params.peaktype='Rex';
 end
 % Update MT lineshape selection and keep MTsuperLorentz flag in sync
 if ui.peakfit.MTlorentz.Value
@@ -327,6 +342,9 @@ function restoreDefaults(~,~)
     set(ui.topproc.exp.aplab,    'Visible', strcmp(params.filter,'exponential'));
     set(ui.topproc.gauss.edgeset,'Value', params.edge, 'Visible', strcmp(params.filter,'gaussian'));
     set(ui.topproc.gauss.edgelab,'Visible', strcmp(params.filter,'gaussian'));
+    set(ui.topproc.rectchk,      'Value', procflgs.rect);
+    set(ui.topproc.rectpctset,   'Value', params.rectpct, 'Visible', procflgs.rect);
+    set(ui.topproc.rectpctlab,   'Visible', procflgs.rect);
     set(findobj(paramfig,'Tag','ppmwdw'), 'Value', params.ppmwdw);
     set(findobj(paramfig,'Tag','norm'), 'Value', procflgs.norm);
     set(ui.norm.bgrp, 'Visible', procflgs.norm);
@@ -346,6 +364,7 @@ function restoreDefaults(~,~)
     set(ui.peakfit.poolMT,     'Value', sum(strcmp(params.pools,'MT')));
     set(ui.peakfit.Lorentzset,    'Value', strcmp(params.peaktype,'Lorentzian'));
     set(ui.peakfit.PseudoVoigtset,'Value', strcmp(params.peaktype,'Pseudo-Voigt'));
+    set(ui.peakfit.Rexset,        'Value', strcmp(params.peaktype,'Rex'));
     set(ui.peakfit.PVcharconstr,  'Value', procflgs.PVcharconstr, ...
         'Visible', strcmp(params.peaktype,'Pseudo-Voigt'));
     set(ui.peakfit.fixset,'Value', procflgs.fix);

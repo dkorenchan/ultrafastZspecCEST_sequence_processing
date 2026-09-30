@@ -62,6 +62,19 @@ elseif strcmp(ppars.filter,'gaussian')
     apdvec = exp(-1 * ((1:fSize(2)) - gmean).^2 ./ 2 ./ (sigma^2));
 end
 
+% Optional rect window (ultrafast only): zero out the first and last
+% ppars.rectpct percent of the FID points, in addition to the filter above
+if pflgs.rect
+    if pflgs.procConvflg
+        % Conventional z-spec FID max is at the first point, so zeroing the
+        % FID start would remove the signal
+        warning('Rect window is only for ultrafast data; skipping.')
+    else
+        nz = round(fSize(2) * ppars.rectpct / 100);
+        apdvec([1:nz (fSize(2)-nz+1):fSize(2)]) = 0;
+    end
+end
+
 if pflgs.procConvflg %need to work with a 3D dataset
     apdvec2(1,1,:)=apdvec;
     apdmat=repmat(apdvec2,[fSize(3) fSize(1) 1]);

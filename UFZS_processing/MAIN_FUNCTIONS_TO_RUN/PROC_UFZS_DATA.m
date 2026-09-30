@@ -93,9 +93,18 @@ if numel(timing.tp)>1
 end
 if procflgs.peakfit
     if procflgs.invZfit
-        % R1*cos^2(theta)*(1/Z-1) fitting with optional MT pre-fit
-        [results,params]=invZ_R1cos2th_fit_display(results,params,procflgs,timing);
+        if strcmp(params.peaktype,'Rex')
+            % 2D joint Rex fit with Z-space residuals; QUESP not used
+            [results,params]=Rex_Zfit_display(results,params,procflgs,timing);
+        else
+            % R1*cos^2(theta)*(1/Z-1) fitting with optional MT pre-fit
+            [results,params]=invZ_R1cos2th_fit_display(results,params,procflgs,timing);
+        end
     else
+        if strcmp(params.peaktype,'Rex')
+            warning('Rex fitting requires 1/Z mode; switching to Pseudo-Voigt in Z space.')
+            params.peaktype = 'Pseudo-Voigt';
+        end
         results=zPeaks_fit_display(results,params,procflgs);
 %         results=invZpeaks_fit_display(results,params,procflgs);
     end
@@ -103,8 +112,10 @@ else
     params.pools={'MTRasym'}; %this is used later on
 end
 
-% Perform QUESP fitting and plotting
-results=QUESP_fit_display(results,params,timing,opts);
+% Perform QUESP fitting and plotting (skipped for Rex mode)
+if ~strcmp(params.peaktype,'Rex')
+    results=QUESP_fit_display(results,params,timing,opts);
+end
 
 
 else
